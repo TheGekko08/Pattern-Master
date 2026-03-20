@@ -1,76 +1,108 @@
 // database.js
-require('dotenv').config();
-const mysql = require('mysql2/promise');
+const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
+const path = require('path');
 
-const dbConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'pattern_master_db',
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-};
+// Ruta correcta para que funcione en Render
+const dbPath = path.join(__dirname, 'patrones.db');
+const db = new sqlite3.Database(dbPath);
 
-let pool;
+db.serialize(() => {
+    // Tabla Usuarios
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE,
+        password TEXT,
+        score INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
 
-async function initDB() {
-    try {
-        pool = mysql.createPool(dbConfig);
-        const connection = await pool.getConnection();
-        console.log('✅ Conectado a MySQL');
-        connection.release();
+    // Tabla Secuencias
+    db.run(`CREATE TABLE IF NOT EXISTS secuencias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        numeros TEXT,
+        respuesta REAL,
+        dificultad TEXT
+    )`);
 
-        await createTables();
-        await seedPatterns();
-    } catch (error) {
-        console.error('❌ Error conectando a MySQL:', error.message);
-        console.log('¿Está XAMPP encendido? ¿Creaste la BD "pattern_master_db"?');
-    }
-}
+    // Generar Patrones si está vacía
+    db.get("SELECT count(*) as count FROM secuencias", (err, row) => {
+        if (row.count < 50) {
+            console.log("🌱 Generando patrones SQLite...");
+            const stmt = db.prepare("INSERT OR IGNORE INTO secuencias (numeros, respuesta, dificultad) VALUES (?, ?, ?)");
+            let patterns = [];
 
-async function createTables() {
-    await pool.query(`CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        username VARCHAR(50) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        score INT DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+            // FÁCIL
+            for (let i = 0; i < 30; i++) {
+                let start = Math.floor(Math.random() * 20) + 1;
+                let step = Math.floor(Math.random() * 9) + 1;
+                patterns.push([`${start}, ${start+step}, ${start+(step*2)}, ${start+(step*3)}`, start+(step*4), 'fácil']);
+                let startR = Math.floor(Math.random() * 50) + 20;
+                let stepR = Math.floor(Math.random() * 5) + 1;
+                patterns.push([`${startR}, ${startR-stepR}, ${startR-(stepR*2)}, ${startR-(stepR*3)}`, startR-(stepR*4), 'fácil']);
+            }
+            // MEDIO
+            for (let i = 0; i < 30; i++) {
+                let startM = Math.floor(Math.random() * 5) + 1;
+                let mult = Math.floor(Math.random() * 4) + 2;
+                let seqM = [startM, startM*mult, startM*mult*mult, startM*Math.pow(mult,3)].map(n => Math.round(n));
+                let respM = Math.round(startM * Math.pow(mult, 4));
+                if(respM < 10000) patterns.push([seqM.join(', '), respM, 'medio']);
+                
+                let offset = Math.floor(Math.random() * 3);
+                let nStart = Math.floor(Math.random() * 5) + 1;
+                let seqQ = [];
+                for(let k=0; k<4; k++) seqQ.push(Math.pow(nStart+k, 2) + offset);
+                patterns.push([seqQ.join(', '), Math.pow(nStart+4, 2) + offset, 'medio']);
+            }
+            // DIFÍCIL
+            const primos = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97];
+            for (let i = 0; i < 10; i++) {
+                if(i+4 < primos.length) patterns.push([primos.slice(i, i+4).join(', '), primos[i+4], 'difícil']);
+            }
+            for (let i = 0; i < 20; i++) {
+                let nStart = Math.floor(Math.random() * 6) + 1;
+                let seqC = [];
+                for(let k=0; k<4; k++) seqC.push(Math.pow(nStart+k, 3));
+                patterns.push([seqC.join(', '), Math.pow(nStart+4, 3), 'difícil']);
+                
+                let startAlt = Math.floor(Math.random() * 5) + 1;
+                let sumVal = Math.floor(Math.random() * 3) + 1;
+                let s1 = startAlt, s2 = s1 + sumVal, s3 = s2 * 2, s4 = s3 + sumVal;
+                if(s4*2 < 5000) patterns.push([`${s1}, ${s2}, ${s3}, ${s4}`, s4*2, 'difícil']);
+            }
+            // EXPERTO
+            for (let i = 0; i < 25; i++) {
+                let startFact = Math.floor(Math.random() * 3) + 1;
+                if (startFact + 4 <= 7) {
+                    let seqFact = [];
+                    for(let k=0; k<4; k++) {
+                        let n = startFact + k, f = 1; 
+                        for(let x=1; x<=n; x++) f*=x;
+                        seqFact.push(f);
+                    }
+                    let nextN = startFact + 4, respFact = 1; 
+                    for(let x=1; x<=nextN; x++) respFact*=x;
+                    patterns.push([seqFact.join(', '), respFact, 'experto']);
+                }
+                let bases = [1.5, 2.5];
+                let base = bases[i % 2];
+                let startGeo = (Math.floor(Math.random() * 10) + 2) * 2;
+                let g1 = startGeo, g2 = g1 * base, g3 = g2 * base, g4 = g3 * base, respGeo = g4 * base;
+                if (Number.isInteger(g2*2) && Number.isInteger(respGeo*2)) {
+                     patterns.push([`${g1}, ${g2}, ${g3}, ${g4}`, parseFloat(respGeo.toFixed(1)), 'experto']);
+                }
+            }
 
-    await pool.query(`CREATE TABLE IF NOT EXISTS secuencias (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        numeros TEXT NOT NULL,
-        respuesta DECIMAL(10, 2) NOT NULL,
-        dificultad VARCHAR(20) NOT NULL,
-        INDEX idx_dificultad (dificultad)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
-    
-    console.log('📊 Tablas listas.');
-}
-
-async function seedPatterns() {
-    const [rows] = await pool.query('SELECT COUNT(*) as count FROM secuencias');
-    if (rows[0].count < 50) {
-        console.log('🌱 Generando patrones...');
-        let patterns = [];
-        // (Aquí va la misma lógica de generación de patrones que te di antes, 
-        // puedes copiarla del mensaje anterior de "database.js MySQL" si la borraste)
-        // ... [COPIA AQUÍ LA LÓGICA DE GENERACIÓN DEL MENSAJE ANTERIOR] ...
-        
-        // Ejemplo simplificado para no alargar tanto el código aquí:
-        for(let i=0; i<20; i++) patterns.push([`${i+1}, ${i+2}, ${i+3}, ${i+4}`, i+5, 'fácil']);
-        for(let i=0; i<20; i++) patterns.push([`${i*2}, ${i*2+2}, ${i*2+4}, ${i*2+6}`, i*2+8, 'medio']);
-        
-        if(patterns.length > 0) {
-            await pool.query('INSERT INTO secuencias (numeros, respuesta, dificultad) VALUES ?', [patterns]);
-            console.log(`✨ ${patterns.length} patrones creados.`);
+            patterns.forEach(p => stmt.run(p[0], p[1], p[2]));
+            stmt.finalize();
+            console.log(`✨ ${patterns.length} patrones generados.`);
         }
-    }
-}
+    });
+});
 
 module.exports = {
-    query: (sql, params) => pool.query(sql, params),
-    init: initDB
+    get: (sql, params, callback) => db.get(sql, params, callback),
+    run: (sql, params, callback) => db.run(sql, params, callback),
+    all: (sql, params, callback) => db.all(sql, params, callback)
 };
