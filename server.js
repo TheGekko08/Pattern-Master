@@ -52,7 +52,7 @@ app.post('/api/register', (req, res) => {
                     
                     if (row) {
                         // ¡Éxito! Usuario encontrado
-                        console.log(`✅ [REGISTER] ¡Usuario encontrado! ID: ${row.id}`);
+                        console.log(`✅ [REGISTER] ¡Usuario encontrado! ID: ${row.id}, Username: ${row.username}`);
                         return res.json({ success: true, userId: row.id, username: row.username });
                     } else {
                         // No encontrado aún
@@ -68,8 +68,8 @@ app.post('/api/register', (req, res) => {
                             db.all("SELECT username FROM users", [], (err, allUsers) => {
                                 if(allUsers) {
                                     console.log("👥 Usuarios actuales en DB:", allUsers.map(u => u.username));
-                                    // Si el usuario está en la lista pero el SELECT individual falló, es raro.
-                                    // Si la lista está vacía, la inserción falló silenciosamente o se perdió.
+                                } else {
+                                    console.log("👥 No se pudo listar usuarios para debug.");
                                 }
                             });
                             
@@ -79,7 +79,7 @@ app.post('/api/register', (req, res) => {
                 });
             };
 
-            // Iniciar la búsqueda con 5 reintentos (aprox 750ms de espera total)
+            // Iniciar la búsqueda con 5 reintentos
             tryFindUser(5);
         });
     });
@@ -94,9 +94,20 @@ app.post('/api/login', (req, res) => {
             console.error("❌ [LOGIN] Error DB:", err);
             return res.status(500).json({ error: "Error de servidor" });
         }
+
+        // DEBUG CRÍTICO: Ver qué devuelve exactamente la DB
+        console.log("🔍 [LOGIN] Objeto RAW recibido de DB:", JSON.stringify(user));
+
         if (!user) {
             console.warn(`⚠️ [LOGIN] Usuario "${username}" NO encontrado en la DB.`);
             return res.status(400).json({ error: "Usuario no encontrado" });
+        }
+
+        // Verificación de seguridad antes de usar .substring()
+        if (!user.password) {
+            console.error("❌ [LOGIN] El usuario existe pero NO tiene contraseña (campo undefined o null).");
+            console.error("   Campos disponibles:", Object.keys(user));
+            return res.status(500).json({ error: "Error de datos de usuario (password faltante)" });
         }
 
         console.log(`💾 [LOGIN] Password en DB (inicio): ${user.password.substring(0, 20)}...`);

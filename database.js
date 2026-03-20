@@ -4,7 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-// En Render, el sistema de archivos es efímero, pero podemos escribir en la carpeta temporal o raíz durante la sesión
 const DB_PATH = path.join(__dirname, 'patrones.db');
 let db = null;
 let SQL = null;
@@ -23,7 +22,7 @@ async function initDB() {
             console.log("🆕 Nueva base de datos creada en memoria.");
         }
 
-        // Crear tablas si no existen
+        // Crear tablas EXPLÍCITAMENTE si no existen
         db.run(`CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -39,7 +38,7 @@ async function initDB() {
             dificultad TEXT NOT NULL
         )`);
 
-        // Verificar si hay patrones
+        // Verificar patrones
         const stmtCount = db.prepare("SELECT count(*) as count FROM secuencias");
         stmtCount.step();
         const row = stmtCount.get();
@@ -136,6 +135,7 @@ function saveDB() {
     }
 }
 
+// Wrapper mejorado para asegurar objetos con nombres de columna
 module.exports = {
     init: initDB,
     
@@ -143,15 +143,26 @@ module.exports = {
         if (!db) return callback(new Error("DB no inicializada"), null);
         try {
             const stmt = db.prepare(sql);
-            stmt.bind(params);
+            if (params) stmt.bind(params);
+            
             if (stmt.step()) {
-                const row = stmt.get();
-                callback(null, row);
+                // Obtener nombres de columnas
+                const columnNames = stmt.getColumnNames();
+                const values = stmt.get(); // Devuelve un array de valores
+                
+                // Convertir array a objeto { columnName: value }
+                const rowObj = {};
+                columnNames.forEach((name, index) => {
+                    rowObj[name] = values[index];
+                });
+                
+                callback(null, rowObj);
             } else {
                 callback(null, null);
             }
             stmt.free();
         } catch (err) {
+            console.error("Error en db.get:", err);
             callback(err, null);
         }
     },
@@ -160,9 +171,8 @@ module.exports = {
         if (!db) return callback(new Error("DB no inicializada"), null);
         try {
             db.run(sql, params);
-            saveDB(); // Guardar inmediatamente después de escribir
+            saveDB();
             
-            // Obtener el último ID insertado manualmente para sql.js
             let lastID = null;
             if (sql.trim().toUpperCase().startsWith("INSERT")) {
                 const res = db.exec("SELECT last_insert_rowid()");
@@ -173,6 +183,7 @@ module.exports = {
             
             callback(null, { lastID: lastID });
         } catch (err) {
+            console.error("Error en db.run:", err);
             callback(err, null);
         }
     },
@@ -181,14 +192,23 @@ module.exports = {
         if (!db) return callback(new Error("DB no inicializada"), null);
         try {
             const stmt = db.prepare(sql);
-            stmt.bind(params);
+            if (params) stmt.bind(params);
+            
+            const columnNames = stmt.getColumnNames();
             const results = [];
+            
             while (stmt.step()) {
-                results.push(stmt.get());
+                const values = stmt.get();
+                const rowObj = {};
+                columnNames.forEach((name, index) => {
+                    rowObj[name] = values[index];
+                });
+                results.push(rowObj);
             }
             stmt.free();
             callback(null, results);
         } catch (err) {
+            console.error("Error en db.all:", err);
             callback(err, null);
         }
     }
