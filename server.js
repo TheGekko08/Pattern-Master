@@ -8,7 +8,6 @@ const db = require('./database');
 const bcrypt = require('bcryptjs');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -92,19 +91,23 @@ app.post('/api/verificar', async (req, res) => {
 });
 
 // --- INICIO DEL SERVIDOR CON ESPERA DE DB ---
+const PORT = process.env.PORT || 3000;
+
+// ... (todo tu código de rutas arriba) ...
+
 async function startServer() {
     try {
         console.log('⏳ Conectando a la base de datos...');
-        // Esperamos a que init() termine completamente
         await db.init(); 
         
-        app.listen(PORT, () => {
-            console.log(`✅ ¡Todo listo! Servidor corriendo en http://localhost:${PORT}`);
+        // CAMBIO IMPORTANTE AQUÍ:
+        // Escuchamos en '0.0.0.0' para que Railway pueda acceder
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`✅ ¡Todo listo! Servidor corriendo en http://0.0.0.0:${PORT}`);
             console.log(`💡 Base de datos conectada y tablas verificadas.`);
         });
     } catch (error) {
-        console.error('❌ FATAL: No se pudo iniciar el servidor por error de DB:', error.message);
-        console.log('Revisa que XAMPP MySQL esté encendido y la BD "pattern_master_db" exista.');
+        console.error('❌ FATAL: No se pudo iniciar:', error.message);
     }
 }
 
