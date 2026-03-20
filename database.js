@@ -4,14 +4,15 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
+// En Render, el sistema de archivos es efímero, pero podemos escribir en la carpeta temporal o raíz durante la sesión
 const DB_PATH = path.join(__dirname, 'patrones.db');
-let db;
+let db = null;
+let SQL = null;
 
 async function initDB() {
     try {
-        const SQL = await initSqlJs();
+        SQL = await initSqlJs();
         
-        // Intentar cargar la DB si existe, sino crear una nueva
         let fileBuffer;
         if (fs.existsSync(DB_PATH)) {
             fileBuffer = fs.readFileSync(DB_PATH);
@@ -22,41 +23,41 @@ async function initDB() {
             console.log("🆕 Nueva base de datos creada en memoria.");
         }
 
-        // Crear tablas
+        // Crear tablas si no existen
         db.run(`CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE,
-            password TEXT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
             score INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`);
 
         db.run(`CREATE TABLE IF NOT EXISTS secuencias (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            numeros TEXT,
-            respuesta REAL,
-            dificultad TEXT
+            numeros TEXT NOT NULL,
+            respuesta REAL NOT NULL,
+            dificultad TEXT NOT NULL
         )`);
 
-        // Verificar patrones
-        const stmt = db.prepare("SELECT count(*) as count FROM secuencias");
-        stmt.step();
-        const row = stmt.get();
+        // Verificar si hay patrones
+        const stmtCount = db.prepare("SELECT count(*) as count FROM secuencias");
+        stmtCount.step();
+        const row = stmtCount.get();
         const count = row ? row.count : 0;
-        stmt.free();
+        stmtCount.free();
 
         if (count < 50) {
             console.log("🌱 Generando patrones...");
-            let patterns = [];
-            // (Misma lógica de generación de antes)
+            const stmtInsert = db.prepare("INSERT OR IGNORE INTO secuencias (numeros, respuesta, dificultad) VALUES (?, ?, ?)");
+            
             // FÁCIL
             for (let i = 0; i < 30; i++) {
                 let start = Math.floor(Math.random() * 20) + 1;
                 let step = Math.floor(Math.random() * 9) + 1;
-                patterns.push([`${start}, ${start+step}, ${start+(step*2)}, ${start+(step*3)}`, start+(step*4), 'fácil']);
+                stmtInsert.run([`${start}, ${start+step}, ${start+(step*2)}, ${start+(step*3)}`, start+(step*4), 'fácil']);
                 let startR = Math.floor(Math.random() * 50) + 20;
                 let stepR = Math.floor(Math.random() * 5) + 1;
-                patterns.push([`${startR}, ${startR-stepR}, ${startR-(stepR*2)}, ${startR-(stepR*3)}`, startR-(stepR*4), 'fácil']);
+                stmtInsert.run([`${startR}, ${startR-stepR}, ${startR-(stepR*2)}, ${startR-(stepR*3)}`, startR-(stepR*4), 'fácil']);
             }
             // MEDIO
             for (let i = 0; i < 30; i++) {
@@ -64,27 +65,29 @@ async function initDB() {
                 let mult = Math.floor(Math.random() * 4) + 2;
                 let seqM = [startM, startM*mult, startM*mult*mult, startM*Math.pow(mult,3)].map(n => Math.round(n));
                 let respM = Math.round(startM * Math.pow(mult, 4));
-                if(respM < 10000) patterns.push([seqM.join(', '), respM, 'medio']);
+                if(respM < 10000) stmtInsert.run([seqM.join(', '), respM, 'medio']);
+                
                 let offset = Math.floor(Math.random() * 3);
                 let nStart = Math.floor(Math.random() * 5) + 1;
                 let seqQ = [];
                 for(let k=0; k<4; k++) seqQ.push(Math.pow(nStart+k, 2) + offset);
-                patterns.push([seqQ.join(', '), Math.pow(nStart+4, 2) + offset, 'medio']);
+                stmtInsert.run([seqQ.join(', '), Math.pow(nStart+4, 2) + offset, 'medio']);
             }
-             // DIFÍCIL
-             const primos = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97];
+            // DIFÍCIL
+            const primos = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97];
             for (let i = 0; i < 10; i++) {
-                if(i+4 < primos.length) patterns.push([primos.slice(i, i+4).join(', '), primos[i+4], 'difícil']);
+                if(i+4 < primos.length) stmtInsert.run([primos.slice(i, i+4).join(', '), primos[i+4], 'difícil']);
             }
             for (let i = 0; i < 20; i++) {
                 let nStart = Math.floor(Math.random() * 6) + 1;
                 let seqC = [];
                 for(let k=0; k<4; k++) seqC.push(Math.pow(nStart+k, 3));
-                patterns.push([seqC.join(', '), Math.pow(nStart+4, 3), 'difícil']);
+                stmtInsert.run([seqC.join(', '), Math.pow(nStart+4, 3), 'difícil']);
+                
                 let startAlt = Math.floor(Math.random() * 5) + 1;
                 let sumVal = Math.floor(Math.random() * 3) + 1;
                 let s1 = startAlt, s2 = s1 + sumVal, s3 = s2 * 2, s4 = s3 + sumVal;
-                if(s4*2 < 5000) patterns.push([`${s1}, ${s2}, ${s3}, ${s4}`, s4*2, 'difícil']);
+                if(s4*2 < 5000) stmtInsert.run([`${s1}, ${s2}, ${s3}, ${s4}`, s4*2, 'difícil']);
             }
             // EXPERTO
             for (let i = 0; i < 25; i++) {
@@ -98,43 +101,46 @@ async function initDB() {
                     }
                     let nextN = startFact + 4, respFact = 1; 
                     for(let x=1; x<=nextN; x++) respFact*=x;
-                    patterns.push([seqFact.join(', '), respFact, 'experto']);
+                    stmtInsert.run([seqFact.join(', '), respFact, 'experto']);
                 }
                 let bases = [1.5, 2.5];
                 let base = bases[i % 2];
                 let startGeo = (Math.floor(Math.random() * 10) + 2) * 2;
                 let g1 = startGeo, g2 = g1 * base, g3 = g2 * base, g4 = g3 * base, respGeo = g4 * base;
                 if (Number.isInteger(g2*2) && Number.isInteger(respGeo*2)) {
-                     patterns.push([`${g1}, ${g2}, ${g3}, ${g4}`, parseFloat(respGeo.toFixed(1)), 'experto']);
+                     stmtInsert.run([`${g1}, ${g2}, ${g3}, ${g4}`, parseFloat(respGeo.toFixed(1)), 'experto']);
                 }
             }
-
-            const stmtInsert = db.prepare("INSERT OR IGNORE INTO secuencias (numeros, respuesta, dificultad) VALUES (?, ?, ?)");
-            patterns.forEach(p => {
-                stmtInsert.run([p[0], p[1], p[2]]);
-            });
+            
             stmtInsert.free();
             saveDB();
-            console.log(`✨ ${patterns.length} patrones generados.`);
+            console.log("✨ Patrones generados y guardados.");
         }
 
-        console.log("✅ Base de datos lista.");
+        console.log("✅ Base de datos inicializada correctamente.");
     } catch (err) {
-        console.error("❌ Error iniciando DB:", err);
+        console.error("❌ Error fatal iniciando DB:", err);
+        throw err;
     }
 }
 
 function saveDB() {
     if (db) {
-        const data = db.export();
-        const buffer = Buffer.from(data);
-        fs.writeFileSync(DB_PATH, buffer);
+        try {
+            const data = db.export();
+            const buffer = Buffer.from(data);
+            fs.writeFileSync(DB_PATH, buffer);
+        } catch (err) {
+            console.error("Error guardando DB en disco:", err);
+        }
     }
 }
 
-// Wrapper para usar promesas o callbacks como antes
 module.exports = {
+    init: initDB,
+    
     get: (sql, params, callback) => {
+        if (!db) return callback(new Error("DB no inicializada"), null);
         try {
             const stmt = db.prepare(sql);
             stmt.bind(params);
@@ -149,16 +155,30 @@ module.exports = {
             callback(err, null);
         }
     },
+    
     run: (sql, params, callback) => {
+        if (!db) return callback(new Error("DB no inicializada"), null);
         try {
             db.run(sql, params);
-            saveDB(); // Guardar cambios en disco después de cada escritura
-            callback(null, { lastID: db.exec("SELECT last_insert_rowid()")[0].values[0][0] });
+            saveDB(); // Guardar inmediatamente después de escribir
+            
+            // Obtener el último ID insertado manualmente para sql.js
+            let lastID = null;
+            if (sql.trim().toUpperCase().startsWith("INSERT")) {
+                const res = db.exec("SELECT last_insert_rowid()");
+                if (res.length > 0 && res[0].values.length > 0) {
+                    lastID = res[0].values[0][0];
+                }
+            }
+            
+            callback(null, { lastID: lastID });
         } catch (err) {
             callback(err, null);
         }
     },
+    
     all: (sql, params, callback) => {
+        if (!db) return callback(new Error("DB no inicializada"), null);
         try {
             const stmt = db.prepare(sql);
             stmt.bind(params);
@@ -171,6 +191,5 @@ module.exports = {
         } catch (err) {
             callback(err, null);
         }
-    },
-    init: initDB
+    }
 };

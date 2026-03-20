@@ -3,7 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
-const db = require('./database'); // <--- Única declaración de db
+const db = require('./database');
 const bcrypt = require('bcryptjs');
 
 const app = express();
@@ -16,20 +16,47 @@ app.use(express.static(path.join(__dirname, 'public')));
 console.log("🚀 Iniciando servidor Pattern Master...");
 
 // --- RUTAS API ---
+
+// REGISTRO CORREGIDO
 app.post('/api/register', (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Datos incompletos" });
     
     bcrypt.hash(password, 10, (err, hash) => {
         if (err) return res.status(500).json({ error: err.message });
+        
         db.run("INSERT INTO users (username, password) VALUES (?, ?)", [username, hash], function(err) {
             if (err) {
-                if (err.message.includes('UNIQUE constraint failed')) return res.status(400).json({ error: "El usuario ya existe" });
-                return res.status(500).json({ error: err.message });
+                if (err.message.includes('UNIQUE constraint failed')) {
+                    return res.status(400).json({ error: "El usuario ya existe" });
+                }
+                console.error("Error DB insert:", err);
+                return res.status(500).json({ error: "Error al guardar usuario" });
             }
-            db.get("SELECT id, username, score FROM users WHERE id = ?", [this.lastID], (err, row) => {
-                res.json({ success: true, userId: row.id, username: row.username });
-            });
+            
+            // OBTENER EL ID DEL USUARIO CREADO
+            // Usamos this.lastID, pero si es null (fallo de sql.js), buscamos por nombre
+            const userId = this.lastID; 
+            
+            if (!userId) {
+                // Plan B: Buscar al usuario recién creado por su nombre
+                db.get("SELECT id, username, score FROM users WHERE username = ?", [username], (err, row) => {
+                    if (err || !row) {
+                        console.error("Error buscando usuario tras registro:", err);
+                        return res.status(500).json({ error: "Usuario creado pero no encontrado" });
+                    }
+                    res.json({ success: true, userId: row.id, username: row.username });
+                });
+            } else {
+                // Plan A: Buscar por ID (lo normal)
+                db.get("SELECT id, username, score FROM users WHERE id = ?", [userId], (err, row) => {
+                    if (err || !row) {
+                        console.error("Error buscando usuario por ID:", err);
+                        return res.status(500).json({ error: "Usuario creado pero no encontrado" });
+                    }
+                    res.json({ success: true, userId: row.id, username: row.username });
+                });
+            }
         });
     });
 });
@@ -37,10 +64,14 @@ app.post('/api/register', (req, res) => {
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     db.get("SELECT * FROM users WHERE username = ?", [username], (err, user) => {
-        if (err || !user) return res.status(400).json({ error: "Usuario no encontrado" });
+        if (err || !user) return res.status(400).json({ error: "Usuario no encontrado o contraseña incorrecta" });
+        
         bcrypt.compare(password, user.password, (err, match) => {
-            if (match) res.json({ success: true, userId: user.id, username: user.username, score: user.score });
-            else res.status(400).json({ error: "Contraseña incorrecta" });
+            if (match) {
+                res.json({ success: true, userId: user.id, username: user.username, score: user.score });
+            } else {
+                res.status(400).json({ error: "Contraseña incorrecta" });
+            }
         });
     });
 });
@@ -79,7 +110,6 @@ app.post('/api/verificar', (req, res) => {
 });
 
 // --- INICIO DEL SERVIDOR ---
-// Inicializamos la DB antes de escuchar peticiones
 db.init().then(() => {
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`✅ Servidor corriendo en puerto ${PORT}`);
