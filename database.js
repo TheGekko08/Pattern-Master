@@ -11,11 +11,11 @@ async function initDB() {
     try {
         SQL = await initSqlJs();
         
-        // FORZAR NUEVA BASE DE DATOS PARA EVITAR CORRUPTOS EN RENDER
+        // FORZAR NUEVA BASE DE DATOS PARA EVITAR CORRUPTOS
         db = new SQL.Database();
         console.log("🆕 Nueva base de datos creada en memoria (Forzado)."); 
 
-        // Crear tablas EXPLÍCITAMENTE si no existen
+        // Crear tablas
         db.run(`CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,

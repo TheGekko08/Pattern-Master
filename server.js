@@ -55,12 +55,11 @@ app.post('/api/register', (req, res) => {
                             console.warn(`⚠️ [REGISTER] Usuario no visible aún. Reintentando (${attempts} intentos left)...`);
                             setTimeout(() => tryFindUser(attempts - 1), 150);
                         } else {
-                            console.error("❌ [REGISTER] Fallo crítico: Usuario insertado pero imposible de leer tras varios intentos.");
+                            console.error("❌ [REGISTER] Fallo crítico: Usuario insertado pero imposible de leer.");
                             db.all("SELECT username FROM users", [], (err, allUsers) => {
                                 if(allUsers) console.log("👥 Usuarios actuales en DB:", allUsers.map(u => u.username));
-                                else console.log("👥 No se pudo listar usuarios para debug.");
                             });
-                            return res.status(500).json({ error: "Error de sincronización de DB. Por favor intenta de nuevo." });
+                            return res.status(500).json({ error: "Error de sincronización. Intenta de nuevo." });
                         }
                     }
                 });
@@ -80,10 +79,8 @@ app.post('/api/login', (req, res) => {
             return res.status(500).json({ error: "Error de servidor" });
         }
 
-        console.log("🔍 [LOGIN] Objeto RAW recibido de DB:", JSON.stringify(user));
-
         if (!user) {
-            console.warn(`⚠️ [LOGIN] Usuario "${username}" NO encontrado en la DB.`);
+            console.warn(`⚠️ [LOGIN] Usuario "${username}" NO encontrado.`);
             return res.status(400).json({ error: "Usuario no encontrado" });
         }
 
@@ -94,12 +91,12 @@ app.post('/api/login', (req, res) => {
 
         bcrypt.compare(password, user.password, (err, match) => {
             if (err) {
-                console.error("❌ [LOGIN] Error en bcrypt.compare:", err);
-                return res.status(500).json({ error: "Error al comparar contraseña" });
+                console.error("❌ [LOGIN] Error en compare:", err);
+                return res.status(500).json({ error: "Error al comparar" });
             }
             
             if (match) {
-                console.log(`✅ [LOGIN] ¡Contraseña correcta! Acceso concedido.`);
+                console.log(`✅ [LOGIN] ¡Contraseña correcta!`);
                 res.json({ success: true, userId: user.id, username: user.username, score: user.score });
             } else {
                 console.log(`❌ [LOGIN] Contraseña INCORRECTA.`);
@@ -137,16 +134,13 @@ app.get('/api/nueva-secuencia', (req, res) => {
         if (err) {
             console.error("❌ [JUEGO] Error de SQL:", err.message);
             db.all("SELECT name FROM sqlite_master WHERE type='table'", [], (err2, tables) => {
-                if(tables) console.log("📋 Tablas existentes en DB:", tables.map(t => t.name));
+                if(tables) console.log("📋 Tablas existentes:", tables.map(t => t.name));
             });
-            return res.status(500).json({ error: "Error interno al buscar patrón: " + err.message });
+            return res.status(500).json({ error: "Error interno: " + err.message });
         }
         
         if (!row) {
-            console.warn(`⚠️ [JUEGO] No se encontraron patrones para dificultad '${dificultad}'.`);
-            db.get("SELECT count(*) as c FROM secuencias", [], (errCount, countRow) => {
-                if(countRow) console.log(`🔢 Total de patrones en DB: ${countRow.c}`);
-            });
+            console.warn(`⚠️ [JUEGO] No se encontraron patrones para '${dificultad}'.`);
             return res.status(404).json({ error: "No hay patrones disponibles" });
         }
 
@@ -168,7 +162,7 @@ app.post('/api/verificar', (req, res) => {
 db.init().then(() => {
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`✅ Servidor corriendo en puerto ${PORT}`);
-        console.log(`💡 Base de datos lista y conectada.`);
+        console.log(`💡 Base de datos lista.`);
     });
 }).catch(err => {
     console.error("❌ No se pudo iniciar la DB:", err);
