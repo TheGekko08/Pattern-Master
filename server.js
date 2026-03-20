@@ -78,6 +78,23 @@ app.post('/api/verificar', (req, res) => {
     });
 });
 
+
+// ... imports
+const db = require('./database');
+
+// ... middleware y rutas ...
+
+// Inicializar DB antes de escuchar
+db.init().then(() => {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`✅ Servidor corriendo en puerto ${PORT}`);
+    });
+}).catch(err => {
+    console.error("❌ No se pudo iniciar la DB:", err);
+    process.exit(1);
+});
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Servidor corriendo en puerto ${PORT}`);
 });
