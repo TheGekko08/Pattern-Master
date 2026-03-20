@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -15,52 +14,30 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 console.log("🚀 Iniciando servidor Pattern Master...");
 
-// --- RUTAS API ---
-
 app.post('/api/register', (req, res) => {
     const { username, password } = req.body;
-    console.log(`📝 [REGISTER] Intento de registro para: "${username}"`);
-
     if (!username || !password) return res.status(400).json({ error: "Datos incompletos" });
-    
+
     bcrypt.hash(password, 10, (err, hash) => {
-        if (err) {
-            console.error("❌ [REGISTER] Error al hashear:", err);
-            return res.status(500).json({ error: err.message });
-        }
-        
-        db.run("INSERT INTO users (username, password) VALUES (?, ?)", [username, hash], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+
+        db.run("INSERT INTO users (username, password) VALUES (?, ?)", [username, hash], function (err) {
             if (err) {
-                console.error("❌ [REGISTER] Error DB insert:", err);
                 if (err.message.includes('UNIQUE constraint failed')) {
                     return res.status(400).json({ error: "El usuario ya existe" });
                 }
-                return res.status(500).json({ error: "Error al guardar usuario" });
+                return res.status(500).json({ error: "Error al guardar" });
             }
-            
-            console.log("✅ [REGISTER] Inserción ejecutada. Buscando usuario para confirmar...");
 
             const tryFindUser = (attempts) => {
                 db.get("SELECT id, username, score FROM users WHERE username = ?", [username], (err, row) => {
-                    if (err) {
-                        console.error("❌ [REGISTER] Error buscando usuario:", err);
-                        return res.status(500).json({ error: "Error interno"});
-                    }
-                    
                     if (row) {
-                        console.log(`✅ [REGISTER] ¡Usuario encontrado! ID: ${row.id}, Username: ${row.username}`);
                         return res.json({ success: true, userId: row.id, username: row.username });
+                    }
+                    if (attempts > 0) {
+                        setTimeout(() => tryFindUser(attempts - 1), 150);
                     } else {
-                        if (attempts > 0) {
-                            console.warn(`⚠️ [REGISTER] Usuario no visible aún. Reintentando (${attempts} intentos left)...`);
-                            setTimeout(() => tryFindUser(attempts - 1), 150);
-                        } else {
-                            console.error("❌ [REGISTER] Fallo crítico: Usuario insertado pero imposible de leer.");
-                            db.all("SELECT username FROM users", [], (err, allUsers) => {
-                                if(allUsers) console.log("👥 Usuarios actuales en DB:", allUsers.map(u => u.username));
-                            });
-                            return res.status(500).json({ error: "Error de sincronización. Intenta de nuevo." });
-                        }
+                        res.status(500).json({ error: "Error de sincronización. Intenta de nuevo." });
                     }
                 });
             };
@@ -71,35 +48,14 @@ app.post('/api/register', (req, res) => {
 
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
-    console.log(`🔑 [LOGIN] Intento de login para: "${username}"`);
-
     db.get("SELECT * FROM users WHERE username = ?", [username], (err, user) => {
-        if (err) {
-            console.error("❌ [LOGIN] Error DB:", err);
-            return res.status(500).json({ error: "Error de servidor" });
-        }
-
-        if (!user) {
-            console.warn(`⚠️ [LOGIN] Usuario "${username}" NO encontrado.`);
-            return res.status(400).json({ error: "Usuario no encontrado" });
-        }
-
-        if (!user.password) {
-            console.error("❌ [LOGIN] El usuario existe pero NO tiene contraseña.");
-            return res.status(500).json({ error: "Error de datos de usuario" });
-        }
+        if (err || !user) return res.status(400).json({ error: "Usuario no encontrado" });
+        if (!user.password) return res.status(500).json({ error: "Error de datos" });
 
         bcrypt.compare(password, user.password, (err, match) => {
-            if (err) {
-                console.error("❌ [LOGIN] Error en compare:", err);
-                return res.status(500).json({ error: "Error al comparar" });
-            }
-            
             if (match) {
-                console.log(`✅ [LOGIN] ¡Contraseña correcta!`);
                 res.json({ success: true, userId: user.id, username: user.username, score: user.score });
             } else {
-                console.log(`❌ [LOGIN] Contraseña INCORRECTA.`);
                 res.status(400).json({ error: "Contraseña incorrecta" });
             }
         });
@@ -123,28 +79,12 @@ app.get('/api/leaderboard', (req, res) => {
 
 app.get('/api/nueva-secuencia', (req, res) => {
     const dificultad = req.query.dificultad || 'fácil';
-    console.log(`🎲 [JUEGO] Pidiendo patrón. Dificultad: ${dificultad}`);
-
-    if (!db) {
-        console.error("❌ [JUEGO] ERROR CRÍTICO: La variable 'db' es nula.");
-        return res.status(500).json({ error: "Base de datos no inicializada" });
-    }
+    if (!db) return res.status(500).json({ error: "DB no iniciada" });
 
     db.get("SELECT * FROM secuencias WHERE dificultad = ? ORDER BY RANDOM() LIMIT 1", [dificultad], (err, row) => {
-        if (err) {
-            console.error("❌ [JUEGO] Error de SQL:", err.message);
-            db.all("SELECT name FROM sqlite_master WHERE type='table'", [], (err2, tables) => {
-                if(tables) console.log("📋 Tablas existentes:", tables.map(t => t.name));
-            });
-            return res.status(500).json({ error: "Error interno: " + err.message });
-        }
+        if (err) return res.status(500).json({ error: "Error SQL: " + err.message });
+        if (!row) return res.status(404).json({ error: "Sin patrones" });
         
-        if (!row) {
-            console.warn(`⚠️ [JUEGO] No se encontraron patrones para '${dificultad}'.`);
-            return res.status(404).json({ error: "No hay patrones disponibles" });
-        }
-
-        console.log(`✅ [JUEGO] Patrón encontrado: ${row.numeros}`);
         res.json({ id: row.id, numeros: row.numeros, dificultad: row.dificultad });
     });
 });
@@ -158,13 +98,11 @@ app.post('/api/verificar', (req, res) => {
     });
 });
 
-// --- INICIO DEL SERVIDOR ---
 db.init().then(() => {
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`✅ Servidor corriendo en puerto ${PORT}`);
-        console.log(`💡 Base de datos lista.`);
     });
 }).catch(err => {
-    console.error("❌ No se pudo iniciar la DB:", err);
+    console.error("❌ Error fatal:", err);
     process.exit(1);
 });
