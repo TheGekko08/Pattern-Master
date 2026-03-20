@@ -12,15 +12,12 @@ async function initDB() {
     try {
         SQL = await initSqlJs();
         
-        let fileBuffer;
-        if (fs.existsSync(DB_PATH)) {
-            fileBuffer = fs.readFileSync(DB_PATH);
-            db = new SQL.Database(fileBuffer);
-            console.log("💾 Base de datos cargada desde disco.");
-        } else {
-            db = new SQL.Database();
-            console.log("🆕 Nueva base de datos creada en memoria.");
-        }
+        // ... dentro de initDB()
+        // FORZAR NUEVA BASE DE DATOS PARA EVITAR CORRUPTOS EN RENDER
+        db = new SQL.Database();
+c       onsole.log("🆕 Nueva base de datos creada en memoria (Forzado).");
+        // Nota: En Render, al ser efímero, esto asegura que siempre tengamos una DB válida al arrancar.
+        // Los datos se generan abajo con seedPatterns.
 
         // Crear tablas EXPLÍCITAMENTE si no existen
         db.run(`CREATE TABLE IF NOT EXISTS users (

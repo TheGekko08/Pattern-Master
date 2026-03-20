@@ -147,9 +147,36 @@ app.get('/api/leaderboard', (req, res) => {
 
 app.get('/api/nueva-secuencia', (req, res) => {
     const dificultad = req.query.dificultad || 'fácil';
+    console.log(`🎲 [JUEGO] Pidiendo patrón. Dificultad: ${dificultad}`);
+
+    // 1. Verificar si la DB está lista
+    if (!db) {
+        console.error("❌ [JUEGO] ERROR CRÍTICO: La variable 'db' es nula.");
+        return res.status(500).json({ error: "Base de datos no inicializada" });
+    }
+
+    // 2. Ejecutar la consulta
     db.get("SELECT * FROM secuencias WHERE dificultad = ? ORDER BY RANDOM() LIMIT 1", [dificultad], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(404).json({ error: "No hay patrones" });
+        if (err) {
+            console.error("❌ [JUEGO] Error de SQL:", err.message);
+            // Intentar listar tablas para ver si 'secuencias' existe
+            db.all("SELECT name FROM sqlite_master WHERE type='table'", [], (err2, tables) => {
+                if(tables) console.log("📋 Tablas existentes en DB:", tables.map(t => t.name));
+                else console.log("📋 No se pudo listar tablas.");
+            });
+            return res.status(500).json({ error: "Error interno al buscar patrón: " + err.message });
+        }
+        
+        if (!row) {
+            console.warn(`⚠️ [JUEGO] No se encontraron patrones para dificultad '${dificultad}'.`);
+            // Debug: contar cuántos hay en total
+            db.get("SELECT count(*) as c FROM secuencias", [], (errCount, countRow) => {
+                if(countRow) console.log(`🔢 Total de patrones en DB: ${countRow.c}`);
+            });
+            return res.status(404).json({ error: "No hay patrones disponibles para esta dificultad" });
+        }
+
+        console.log(`✅ [JUEGO] Patrón encontrado: ${row.numeros} -> ${row.respuesta}`);
         res.json({ id: row.id, numeros: row.numeros, dificultad: row.dificultad });
     });
 });
