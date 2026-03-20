@@ -15,8 +15,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 console.log("🚀 Iniciando servidor Pattern Master...");
 
-// --- RUTAS API CON DEPURACIÓN ---
+// --- RUTAS API ---
 
+// REGISTRO CON REINTENTOS PARA SQL.JS
 app.post('/api/register', (req, res) => {
     const { username, password } = req.body;
     console.log(`📝 [REGISTER] Intento de registro para: "${username}"`);
@@ -29,8 +30,7 @@ app.post('/api/register', (req, res) => {
             return res.status(500).json({ error: err.message });
         }
         
-        console.log(`🔐 [REGISTER] Hash generado (inicio): ${hash.substring(0, 20)}...`);
-
+        // 1. Insertar usuario
         db.run("INSERT INTO users (username, password) VALUES (?, ?)", [username, hash], function(err) {
             if (err) {
                 console.error("❌ [REGISTER] Error DB insert:", err);
@@ -40,30 +40,47 @@ app.post('/api/register', (req, res) => {
                 return res.status(500).json({ error: "Error al guardar usuario" });
             }
             
-            const userId = this.lastID; 
-            console.log(`✅ [REGISTER] Usuario insertado. LastID: ${userId}`);
+            console.log("✅ [REGISTER] Inserción ejecutada. Buscando usuario para confirmar...");
 
-            // Función auxiliar para responder
-            const finishRegistration = (id) => {
-                db.get("SELECT id, username, score FROM users WHERE id = ?", [id], (err, row) => {
-                    if (err || !row) {
-                        console.error("❌ [REGISTER] No se pudo recuperar el usuario tras crearlo.");
-                        return res.status(500).json({ error: "Usuario creado pero no encontrado" });
+            // 2. Función recursiva para intentar encontrar al usuario
+            const tryFindUser = (attempts) => {
+                db.get("SELECT id, username, score FROM users WHERE username = ?", [username], (err, row) => {
+                    if (err) {
+                        console.error("❌ [REGISTER] Error buscando usuario:", err);
+                        return res.status(500).json({ error: "Error interno"});
                     }
-                    console.log(`✅ [REGISTER] Registro exitoso. ID: ${row.id}`);
-                    res.json({ success: true, userId: row.id, username: row.username });
+                    
+                    if (row) {
+                        // ¡Éxito! Usuario encontrado
+                        console.log(`✅ [REGISTER] ¡Usuario encontrado! ID: ${row.id}`);
+                        return res.json({ success: true, userId: row.id, username: row.username });
+                    } else {
+                        // No encontrado aún
+                        if (attempts > 0) {
+                            console.warn(`⚠️ [REGISTER] Usuario no visible aún. Reintentando (${attempts} intentos left)...`);
+                            // Esperar 150ms y reintentar
+                            setTimeout(() => tryFindUser(attempts - 1), 150);
+                        } else {
+                            // Fallo crítico tras varios intentos
+                            console.error("❌ [REGISTER] Fallo crítico: Usuario insertado pero imposible de leer tras varios intentos.");
+                            
+                            // Debug extra: listar todos los usuarios para ver si está ahí
+                            db.all("SELECT username FROM users", [], (err, allUsers) => {
+                                if(allUsers) {
+                                    console.log("👥 Usuarios actuales en DB:", allUsers.map(u => u.username));
+                                    // Si el usuario está en la lista pero el SELECT individual falló, es raro.
+                                    // Si la lista está vacía, la inserción falló silenciosamente o se perdió.
+                                }
+                            });
+                            
+                            return res.status(500).json({ error: "Error de sincronización de DB. Por favor intenta de nuevo." });
+                        }
+                    }
                 });
             };
 
-            if (!userId) {
-                console.warn("⚠️ [REGISTER] LastID es nulo, buscando por nombre...");
-                db.get("SELECT id, username, score FROM users WHERE username = ?", [username], (err, row) => {
-                    if (err || !row) return res.status(500).json({ error: "Usuario creado pero no encontrado" });
-                    finishRegistration(row.id);
-                });
-            } else {
-                finishRegistration(userId);
-            }
+            // Iniciar la búsqueda con 5 reintentos (aprox 750ms de espera total)
+            tryFindUser(5);
         });
     });
 });
@@ -84,7 +101,6 @@ app.post('/api/login', (req, res) => {
 
         console.log(`💾 [LOGIN] Password en DB (inicio): ${user.password.substring(0, 20)}...`);
         console.log(`🔑 [LOGIN] Password intentada: "${password}"`);
-        console.log(`🔍 [LOGIN] Tipo de dato DB: ${typeof user.password}, Tipo intentada: ${typeof password}`);
 
         bcrypt.compare(password, user.password, (err, match) => {
             if (err) {
