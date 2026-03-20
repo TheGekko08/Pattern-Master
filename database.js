@@ -2,7 +2,6 @@
 const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
-const bcrypt = require('bcryptjs');
 
 const DB_PATH = path.join(__dirname, 'patrones.db');
 let db = null;
@@ -12,12 +11,10 @@ async function initDB() {
     try {
         SQL = await initSqlJs();
         
-        // ... dentro de initDB()
         // FORZAR NUEVA BASE DE DATOS PARA EVITAR CORRUPTOS EN RENDER
         db = new SQL.Database();
-c       onsole.log("🆕 Nueva base de datos creada en memoria (Forzado).");
+        console.log("🆕 Nueva base de datos creada en memoria (Forzado)."); 
         // Nota: En Render, al ser efímero, esto asegura que siempre tengamos una DB válida al arrancar.
-        // Los datos se generan abajo con seedPatterns.
 
         // Crear tablas EXPLÍCITAMENTE si no existen
         db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -143,16 +140,12 @@ module.exports = {
             if (params) stmt.bind(params);
             
             if (stmt.step()) {
-                // Obtener nombres de columnas
                 const columnNames = stmt.getColumnNames();
-                const values = stmt.get(); // Devuelve un array de valores
-                
-                // Convertir array a objeto { columnName: value }
+                const values = stmt.get();
                 const rowObj = {};
                 columnNames.forEach((name, index) => {
                     rowObj[name] = values[index];
                 });
-                
                 callback(null, rowObj);
             } else {
                 callback(null, null);
@@ -169,7 +162,6 @@ module.exports = {
         try {
             db.run(sql, params);
             saveDB();
-            
             let lastID = null;
             if (sql.trim().toUpperCase().startsWith("INSERT")) {
                 const res = db.exec("SELECT last_insert_rowid()");
@@ -177,7 +169,6 @@ module.exports = {
                     lastID = res[0].values[0][0];
                 }
             }
-            
             callback(null, { lastID: lastID });
         } catch (err) {
             console.error("Error en db.run:", err);
@@ -190,10 +181,8 @@ module.exports = {
         try {
             const stmt = db.prepare(sql);
             if (params) stmt.bind(params);
-            
             const columnNames = stmt.getColumnNames();
             const results = [];
-            
             while (stmt.step()) {
                 const values = stmt.get();
                 const rowObj = {};
