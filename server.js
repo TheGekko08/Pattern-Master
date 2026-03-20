@@ -3,7 +3,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
-const db = require('./database');
+const db = require('./database'); // <--- Única declaración de db
 const bcrypt = require('bcryptjs');
 
 const app = express();
@@ -15,7 +15,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 console.log("🚀 Iniciando servidor Pattern Master...");
 
-// --- RUTAS API (Adaptadas a SQLite) ---
+// --- RUTAS API ---
 app.post('/api/register', (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Datos incompletos" });
@@ -78,23 +78,14 @@ app.post('/api/verificar', (req, res) => {
     });
 });
 
-
-// ... imports
-const db = require('./database');
-
-// ... middleware y rutas ...
-
-// Inicializar DB antes de escuchar
+// --- INICIO DEL SERVIDOR ---
+// Inicializamos la DB antes de escuchar peticiones
 db.init().then(() => {
-    const PORT = process.env.PORT || 3000;
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`✅ Servidor corriendo en puerto ${PORT}`);
+        console.log(`💡 Base de datos lista y conectada.`);
     });
 }).catch(err => {
     console.error("❌ No se pudo iniciar la DB:", err);
     process.exit(1);
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Servidor corriendo en puerto ${PORT}`);
 });
