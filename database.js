@@ -14,7 +14,6 @@ async function initDB() {
         // FORZAR NUEVA BASE DE DATOS PARA EVITAR CORRUPTOS EN RENDER
         db = new SQL.Database();
         console.log("🆕 Nueva base de datos creada en memoria (Forzado)."); 
-        // Nota: En Render, al ser efímero, esto asegura que siempre tengamos una DB válida al arrancar.
 
         // Crear tablas EXPLÍCITAMENTE si no existen
         db.run(`CREATE TABLE IF NOT EXISTS users (
@@ -129,7 +128,6 @@ function saveDB() {
     }
 }
 
-// Wrapper mejorado para asegurar objetos con nombres de columna
 module.exports = {
     init: initDB,
     
