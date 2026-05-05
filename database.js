@@ -9,9 +9,12 @@ let SQL = null;
 async function initDB() {
     try {
         SQL = await initSqlJs();
+        
+        // Crear nueva base de datos
         db = new SQL.Database();
-        console.log("🆕 DB creada en memoria.");
+        console.log("🆕 Base de datos creada en memoria");
 
+        // Crear tabla de usuarios
         db.run(`CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
@@ -22,6 +25,7 @@ async function initDB() {
             score_experto INTEGER DEFAULT 0
         )`);
 
+        // Crear tabla de secuencias
         db.run(`CREATE TABLE IF NOT EXISTS secuencias (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             numeros TEXT NOT NULL,
@@ -29,67 +33,102 @@ async function initDB() {
             dificultad TEXT NOT NULL
         )`);
 
-        const stmtCount = db.prepare("SELECT count(*) as count FROM secuencias");
+        // Verificar cuántos patrones hay
+        const stmtCount = db.prepare("SELECT COUNT(*) as count FROM secuencias");
         stmtCount.step();
-        const count = stmtCount.get().count;
+        const result = stmtCount.get();
+        const count = result ? result.count : 0;
         stmtCount.free();
 
+        console.log(`📊 Patrones existentes: ${count}`);
+
+        // Si hay menos de 200 patrones, generarlos
         if (count < 200) {
             console.log("🌱 Generando 200 patrones (50 por dificultad)...");
+            
+            // Borrar patrones existentes para regenerar
+            db.run("DELETE FROM secuencias");
+            
             const stmtInsert = db.prepare("INSERT INTO secuencias (numeros, respuesta, dificultad) VALUES (?, ?, ?)");
 
-            // FÁCIL
+            // FÁCIL - 50 patrones (sumas y restas)
             for (let i = 0; i < 25; i++) {
                 let s = Math.floor(Math.random() * 20) + 1;
                 let step = Math.floor(Math.random() * 9) + 1;
-                stmtInsert.run([`${s}, ${s + step}, ${s + step * 2}, ${s + step * 3}`, s + step * 4, 'fácil']);
+                stmtInsert.run([
+                    `${s}, ${s + step}, ${s + step * 2}, ${s + step * 3}`,
+                    s + step * 4,
+                    'fácil'
+                ]);
             }
             for (let i = 0; i < 25; i++) {
                 let s = Math.floor(Math.random() * 50) + 20;
                 let step = Math.floor(Math.random() * 5) + 1;
-                stmtInsert.run([`${s}, ${s - step}, ${s - step * 2}, ${s - step * 3}`, s - step * 4, 'fácil']);
+                stmtInsert.run([
+                    `${s}, ${s - step}, ${s - step * 2}, ${s - step * 3}`,
+                    s - step * 4,
+                    'fácil'
+                ]);
             }
 
-            // MEDIO
+            // MEDIO - 50 patrones (multiplicación y cuadrados)
             for (let i = 0; i < 25; i++) {
                 let s = Math.floor(Math.random() * 5) + 1;
                 let m = Math.floor(Math.random() * 3) + 2;
                 let seq = [s, s * m, s * m * m, s * Math.pow(m, 3)].map(n => Math.round(n));
                 let resp = Math.round(s * Math.pow(m, 4));
-                if (resp < 10000) stmtInsert.run([seq.join(', '), resp, 'medio']);
+                if (resp < 10000) {
+                    stmtInsert.run([seq.join(', '), resp, 'medio']);
+                }
             }
             for (let i = 0; i < 25; i++) {
                 let n = Math.floor(Math.random() * 5) + 1;
                 let offset = Math.floor(Math.random() * 3);
-                let seq = [Math.pow(n, 2) + offset, Math.pow(n + 1, 2) + offset, Math.pow(n + 2, 2) + offset, Math.pow(n + 3, 2) + offset];
+                let seq = [
+                    Math.pow(n, 2) + offset,
+                    Math.pow(n + 1, 2) + offset,
+                    Math.pow(n + 2, 2) + offset,
+                    Math.pow(n + 3, 2) + offset
+                ];
                 let resp = Math.pow(n + 4, 2) + offset;
                 stmtInsert.run([seq.join(', '), resp, 'medio']);
             }
 
-            // DIFÍCIL
+            // DIFÍCIL - 50 patrones (primos y cubos)
             const primos = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229];
             for (let i = 0; i < 25; i++) {
                 if (i + 4 < primos.length) {
-                    stmtInsert.run([`${primos[i]}, ${primos[i + 1]}, ${primos[i + 2]}, ${primos[i + 3]}`, primos[i + 4], 'difícil']);
+                    stmtInsert.run([
+                        `${primos[i]}, ${primos[i + 1]}, ${primos[i + 2]}, ${primos[i + 3]}`,
+                        primos[i + 4],
+                        'difícil'
+                    ]);
                 }
             }
             for (let i = 0; i < 25; i++) {
                 let n = Math.floor(Math.random() * 6) + 1;
-                let seq = [Math.pow(n, 3), Math.pow(n + 1, 3), Math.pow(n + 2, 3), Math.pow(n + 3, 3)];
+                let seq = [
+                    Math.pow(n, 3),
+                    Math.pow(n + 1, 3),
+                    Math.pow(n + 2, 3),
+                    Math.pow(n + 3, 3)
+                ];
                 let resp = Math.pow(n + 4, 3);
                 stmtInsert.run([seq.join(', '), resp, 'difícil']);
             }
 
-            // EXPERTO
+            // EXPERTO - 50 patrones (factoriales, fibonacci, combinados)
             for (let i = 0; i < 17; i++) {
                 if (i + 4 <= 7) {
                     let seq = [];
                     for (let k = 0; k < 4; k++) {
-                        let num = i + k + 1, fact = 1;
+                        let num = i + k + 1;
+                        let fact = 1;
                         for (let x = 1; x <= num; x++) fact *= x;
                         seq.push(fact);
                     }
-                    let nextNum = i + 5, resp = 1;
+                    let nextNum = i + 5;
+                    let resp = 1;
                     for (let x = 1; x <= nextNum; x++) resp *= x;
                     stmtInsert.run([seq.join(', '), resp, 'experto']);
                 }
@@ -97,7 +136,9 @@ async function initDB() {
             for (let i = 0; i < 17; i++) {
                 let a = Math.floor(Math.random() * 5) + 1;
                 let b = Math.floor(Math.random() * 5) + 1;
-                let c = a + b, d = b + c, e = c + d;
+                let c = a + b;
+                let d = b + c;
+                let e = c + d;
                 stmtInsert.run([`${a}, ${b}, ${c}, ${d}`, e, 'experto']);
             }
             for (let i = 0; i < 16; i++) {
@@ -110,20 +151,24 @@ async function initDB() {
             }
 
             stmtInsert.free();
+            
+            // Guardar en archivo
             const data = db.export();
             fs.writeFileSync(DB_PATH, Buffer.from(data));
-            console.log("✨ 200 patrones guardados.");
+            
+            console.log("✨ 200 patrones generados y guardados exitosamente");
         }
 
-        console.log("✅ DB lista.");
+        console.log("✅ Base de datos lista");
     } catch (err) {
-        console.error("❌ Error DB:", err);
+        console.error("❌ Error en DB:", err);
         throw err;
     }
 }
 
 module.exports = {
     init: initDB,
+    
     get: (sql, params, callback) => {
         if (!db) return callback(new Error("DB null"));
         try {
@@ -139,15 +184,21 @@ module.exports = {
                 callback(null, null);
             }
             stmt.free();
-        } catch (e) { callback(e, null); }
+        } catch (e) {
+            callback(e, null);
+        }
     },
+    
     run: (sql, params, callback) => {
         if (!db) return callback(new Error("DB null"));
         try {
             db.run(sql, params);
             callback(null, {});
-        } catch (e) { callback(e, null); }
+        } catch (e) {
+            callback(e, null);
+        }
     },
+    
     all: (sql, params, callback) => {
         if (!db) return callback(new Error("DB null"));
         try {
@@ -163,6 +214,8 @@ module.exports = {
             }
             stmt.free();
             callback(null, res);
-        } catch (e) { callback(e, null); }
+        } catch (e) {
+            callback(e, null);
+        }
     }
 };
