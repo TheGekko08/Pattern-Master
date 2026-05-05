@@ -12,15 +12,14 @@ async function initDB() {
         db = new SQL.Database();
         console.log("🆕 DB creada en memoria.");
 
-        // Tabla de usuarios con puntuación separada por dificultad
         db.run(`CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            score_facil    INTEGER DEFAULT 0,
-            score_medio    INTEGER DEFAULT 0,
-            score_dificil  INTEGER DEFAULT 0,
-            score_experto  INTEGER DEFAULT 0
+            score_facil INTEGER DEFAULT 0,
+            score_medio INTEGER DEFAULT 0,
+            score_dificil INTEGER DEFAULT 0,
+            score_experto INTEGER DEFAULT 0
         )`);
 
         db.run(`CREATE TABLE IF NOT EXISTS secuencias (
@@ -35,77 +34,87 @@ async function initDB() {
         const count = stmtCount.get().count;
         stmtCount.free();
 
-        if (count < 100) {
-            console.log("🌱 Generando patrones para las 4 dificultades...");
-            const stmtInsert = db.prepare(
-                "INSERT OR IGNORE INTO secuencias (numeros, respuesta, dificultad) VALUES (?, ?, ?)"
-            );
+        if (count < 200) {
+            console.log("🌱 Generando 200 patrones (50 por dificultad)...");
+            const stmtInsert = db.prepare("INSERT INTO secuencias (numeros, respuesta, dificultad) VALUES (?, ?, ?)");
 
-            // ── FÁCIL: secuencias aritméticas simples ──────────────────────
-            for (let i = 0; i < 40; i++) {
-                let s    = Math.floor(Math.random() * 20) + 1;
-                let step = Math.floor(Math.random() * 9)  + 1;
-                stmtInsert.run([
-                    `${s}, ${s + step}, ${s + step * 2}, ${s + step * 3}`,
-                    s + step * 4,
-                    'fácil'
-                ]);
+            // FÁCIL - 50 patrones (sumas y restas simples)
+            for (let i = 0; i < 25; i++) {
+                let s = Math.floor(Math.random() * 20) + 1;
+                let step = Math.floor(Math.random() * 9) + 1;
+                stmtInsert.run([`${s}, ${s + step}, ${s + step * 2}, ${s + step * 3}`, s + step * 4, 'fácil']);
+            }
+            for (let i = 0; i < 25; i++) {
+                let s = Math.floor(Math.random() * 50) + 20;
+                let step = Math.floor(Math.random() * 5) + 1;
+                stmtInsert.run([`${s}, ${s - step}, ${s - step * 2}, ${s - step * 3}`, s - step * 4, 'fácil']);
             }
 
-            // ── MEDIO: secuencias geométricas ──────────────────────────────
-            for (let i = 0; i < 40; i++) {
+            // MEDIO - 50 patrones (multiplicación y cuadrados)
+            for (let i = 0; i < 25; i++) {
                 let s = Math.floor(Math.random() * 5) + 1;
                 let m = Math.floor(Math.random() * 3) + 2;
                 let seq = [s, s * m, s * m * m, s * Math.pow(m, 3)].map(n => Math.round(n));
                 let resp = Math.round(s * Math.pow(m, 4));
                 if (resp < 10000) stmtInsert.run([seq.join(', '), resp, 'medio']);
             }
-
-            // ── DIFÍCIL: diferencias de segundo orden / cuadráticos ────────
-            for (let i = 0; i < 40; i++) {
-                // a·n² + b·n + c  (n = 1..5)
-                let a = Math.floor(Math.random() * 4) + 1;  // 1..4
-                let b = Math.floor(Math.random() * 6);       // 0..5
-                let c = Math.floor(Math.random() * 10);      // 0..9
-                let terms = [1, 2, 3, 4].map(n => a * n * n + b * n + c);
-                let resp  = a * 25 + b * 5 + c;
-                stmtInsert.run([terms.join(', '), resp, 'difícil']);
+            for (let i = 0; i < 25; i++) {
+                let n = Math.floor(Math.random() * 5) + 1;
+                let offset = Math.floor(Math.random() * 3);
+                let seq = [Math.pow(n, 2) + offset, Math.pow(n + 1, 2) + offset, Math.pow(n + 2, 2) + offset, Math.pow(n + 3, 2) + offset];
+                let resp = Math.pow(n + 4, 2) + offset;
+                stmtInsert.run([seq.join(', '), resp, 'medio']);
             }
 
-            // ── EXPERTO: Fibonacci-like / combinados ───────────────────────
-            for (let i = 0; i < 40; i++) {
-                const type = i % 3;
-                if (type === 0) {
-                    // Fibonacci desplazado: cada término = suma de los dos anteriores
-                    let a = Math.floor(Math.random() * 5) + 1;
-                    let b = Math.floor(Math.random() * 5) + 1;
-                    let c = a + b, d = b + c, e = c + d;
-                    stmtInsert.run([`${a}, ${b}, ${c}, ${d}`, e, 'experto']);
-                } else if (type === 1) {
-                    // Potencias: 2^n o 3^n con offset
-                    let base   = Math.random() < 0.5 ? 2 : 3;
-                    let offset = Math.floor(Math.random() * 10);
-                    let terms  = [1, 2, 3, 4].map(n => Math.pow(base, n) + offset);
-                    let resp   = Math.pow(base, 5) + offset;
-                    if (resp < 500) stmtInsert.run([terms.join(', '), resp, 'experto']);
-                } else {
-                    // Aritmética alternada: +a, +b, +a, +b …
-                    let s  = Math.floor(Math.random() * 10) + 1;
-                    let a2 = Math.floor(Math.random() * 7)  + 2;
-                    let b2 = Math.floor(Math.random() * 7)  + 2;
-                    let t  = [s, s + a2, s + a2 + b2, s + 2 * a2 + b2];
-                    let r  = s + 2 * a2 + 2 * b2;
-                    stmtInsert.run([t.join(', '), r, 'experto']);
+            // DIFÍCIL - 50 patrones (cubos y primos)
+            const primos = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229];
+            for (let i = 0; i < 25; i++) {
+                if (i + 4 < primos.length) {
+                    stmtInsert.run([`${primos[i]}, ${primos[i + 1]}, ${primos[i + 2]}, ${primos[i + 3]}`, primos[i + 4], 'difícil']);
                 }
+            }
+            for (let i = 0; i < 25; i++) {
+                let n = Math.floor(Math.random() * 6) + 1;
+                let seq = [Math.pow(n, 3), Math.pow(n + 1, 3), Math.pow(n + 2, 3), Math.pow(n + 3, 3)];
+                let resp = Math.pow(n + 4, 3);
+                stmtInsert.run([seq.join(', '), resp, 'difícil']);
+            }
+
+            // EXPERTO - 50 patrones (factoriales, fibonacci, combinados)
+            for (let i = 0; i < 17; i++) {
+                if (i + 4 <= 7) {
+                    let seq = [];
+                    for (let k = 0; k < 4; k++) {
+                        let num = i + k + 1, fact = 1;
+                        for (let x = 1; x <= num; x++) fact *= x;
+                        seq.push(fact);
+                    }
+                    let nextNum = i + 5, resp = 1;
+                    for (let x = 1; x <= nextNum; x++) resp *= x;
+                    stmtInsert.run([seq.join(', '), resp, 'experto']);
+                }
+            }
+            for (let i = 0; i < 17; i++) {
+                let a = Math.floor(Math.random() * 5) + 1;
+                let b = Math.floor(Math.random() * 5) + 1;
+                let c = a + b, d = b + c, e = c + d;
+                stmtInsert.run([`${a}, ${b}, ${c}, ${d}`, e, 'experto']);
+            }
+            for (let i = 0; i < 16; i++) {
+                let s = Math.floor(Math.random() * 10) + 1;
+                let a = Math.floor(Math.random() * 7) + 2;
+                let b = Math.floor(Math.random() * 7) + 2;
+                let seq = [s, s + a, s + a + b, s + 2 * a + b];
+                let resp = s + 2 * a + 2 * b;
+                stmtInsert.run([seq.join(', '), resp, 'experto']);
             }
 
             stmtInsert.free();
-            const data = fs.existsSync(DB_PATH)
-                ? fs.readFileSync(DB_PATH)
-                : null;
-            fs.writeFileSync(DB_PATH, Buffer.from(db.export()));
-            console.log("✨ Patrones guardados para las 4 dificultades.");
+            const data = db.export();
+            fs.writeFileSync(DB_PATH, Buffer.from(data));
+            console.log("✨ 200 patrones guardados (50 por dificultad).");
         }
+
         console.log("✅ DB lista.");
     } catch (err) {
         console.error("❌ Error DB:", err);
@@ -115,7 +124,6 @@ async function initDB() {
 
 module.exports = {
     init: initDB,
-
     get: (sql, params, callback) => {
         if (!db) return callback(new Error("DB null"));
         try {
@@ -124,7 +132,7 @@ module.exports = {
             if (stmt.step()) {
                 const cols = stmt.getColumnNames();
                 const vals = stmt.get();
-                const obj  = {};
+                const obj = {};
                 cols.forEach((c, i) => obj[c] = vals[i]);
                 callback(null, obj);
             } else {
@@ -133,7 +141,6 @@ module.exports = {
             stmt.free();
         } catch (e) { callback(e, null); }
     },
-
     run: (sql, params, callback) => {
         if (!db) return callback(new Error("DB null"));
         try {
@@ -141,17 +148,16 @@ module.exports = {
             callback(null, {});
         } catch (e) { callback(e, null); }
     },
-
     all: (sql, params, callback) => {
         if (!db) return callback(new Error("DB null"));
         try {
             const stmt = db.prepare(sql);
             if (params) stmt.bind(params);
             const cols = stmt.getColumnNames();
-            const res  = [];
+            const res = [];
             while (stmt.step()) {
                 const vals = stmt.get();
-                const obj  = {};
+                const obj = {};
                 cols.forEach((c, i) => obj[c] = vals[i]);
                 res.push(obj);
             }
