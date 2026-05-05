@@ -19,13 +19,6 @@ const DIFF_COL = {
     'experto': 'score_experto'
 };
 
-const TIMER_SECONDS = {
-    'fácil': 20,
-    'medio': 35,
-    'difícil': 60,
-    'experto': 90
-};
-
 console.log("🚀 Iniciando servidor Pattern Master...");
 
 app.post('/api/register', (req, res) => {
@@ -35,9 +28,9 @@ app.post('/api/register', (req, res) => {
     bcrypt.hash(password, 10, (err, hash) => {
         if (err) return res.status(500).json({ error: err.message });
 
-        db.run("INSERT INTO users (username, password) VALUES (?, ?)", [username, hash], function(err) {
+        db.run("INSERT INTO users (username, password) VALUES (?, ?)", [username, hash], (err) => {
             if (err) {
-                if (err.message.includes('UNIQUE constraint failed')) {
+                if (err.message && err.message.includes('UNIQUE constraint failed')) {
                     return res.status(400).json({ error: "El usuario ya existe" });
                 }
                 return res.status(500).json({ error: "Error al guardar" });
@@ -59,24 +52,10 @@ app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     db.get("SELECT * FROM users WHERE username = ?", [username], (err, user) => {
         if (err || !user) return res.status(400).json({ error: "Usuario no encontrado" });
-        
-        const now = Date.now();
-        if (user.locked_until && user.locked_until > now) {
-            const remaining = Math.ceil((user.locked_until - now) / 1000);
-            return res.status(403).json({ 
-                error: "Cuenta bloqueada", 
-                blocked: true, 
-                remainingSeconds: remaining 
-            });
-        }
-        
-        if (user.locked_until && user.locked_until <= now) {
-            db.run("UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?", [user.id]);
-        }
+        if (!user.password) return res.status(500).json({ error: "Error de datos" });
 
         bcrypt.compare(password, user.password, (err, match) => {
             if (match) {
-                db.run("UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?", [user.id]);
                 res.json({
                     success: true,
                     userId: user.id,
@@ -87,22 +66,7 @@ app.post('/api/login', (req, res) => {
                     score_experto: user.score_experto
                 });
             } else {
-                const newAttempts = (user.failed_attempts || 0) + 1;
-                
-                if (newAttempts >= 5) {
-                    const lockedUntil = Date.now() + 15 * 60 * 1000;
-                    db.run("UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?", [newAttempts, lockedUntil, user.id]);
-                    return res.status(403).json({ 
-                        error: "Demasiados intentos. Cuenta bloqueada por 15 minutos.", 
-                        blocked: true, 
-                        remainingSeconds: 900 
-                    });
-                } else {
-                    db.run("UPDATE users SET failed_attempts = ? WHERE id = ?", [newAttempts, user.id]);
-                    return res.status(400).json({ 
-                        error: `Contraseña incorrecta. Intentos restantes: ${5 - newAttempts}` 
-                    });
-                }
+                res.status(400).json({ error: "Contraseña incorrecta" });
             }
         });
     });
@@ -146,12 +110,7 @@ app.get('/api/nueva-secuencia', (req, res) => {
         if (err) return res.status(500).json({ error: "Error SQL: " + err.message });
         if (!row) return res.status(404).json({ error: "Sin patrones para esta dificultad" });
         
-        res.json({ 
-            id: row.id, 
-            numeros: row.numeros, 
-            dificultad: row.dificultad,
-            timeLimit: TIMER_SECONDS[dificultad]
-        });
+        res.json({ id: row.id, numeros: row.numeros, dificultad: row.dificultad });
     });
 });
 

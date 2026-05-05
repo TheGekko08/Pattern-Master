@@ -19,9 +19,7 @@ async function initDB() {
             score_facil INTEGER DEFAULT 0,
             score_medio INTEGER DEFAULT 0,
             score_dificil INTEGER DEFAULT 0,
-            score_experto INTEGER DEFAULT 0,
-            failed_attempts INTEGER DEFAULT 0,
-            locked_until INTEGER DEFAULT NULL
+            score_experto INTEGER DEFAULT 0
         )`);
 
         db.run(`CREATE TABLE IF NOT EXISTS secuencias (
@@ -38,8 +36,6 @@ async function initDB() {
 
         if (count < 200) {
             console.log("🌱 Generando 200 patrones (50 por dificultad)...");
-            db.run("DELETE FROM secuencias");
-            
             const stmtInsert = db.prepare("INSERT INTO secuencias (numeros, respuesta, dificultad) VALUES (?, ?, ?)");
 
             for (let i = 0; i < 25; i++) {
@@ -136,8 +132,12 @@ function saveDB() {
 
 module.exports = {
     init: initDB,
+    
     get: (sql, params, callback) => {
-        if (!db) return callback(new Error("DB null"));
+        if (!db) {
+            if (callback) callback(new Error("DB null"), null);
+            return;
+        }
         try {
             const stmt = db.prepare(sql);
             if (params) stmt.bind(params);
@@ -146,23 +146,35 @@ module.exports = {
                 const vals = stmt.get();
                 const obj = {};
                 cols.forEach((c, i) => obj[c] = vals[i]);
-                callback(null, obj);
+                if (callback) callback(null, obj);
             } else {
-                callback(null, null);
+                if (callback) callback(null, null);
             }
             stmt.free();
-        } catch (e) { callback(e, null); }
+        } catch (e) {
+            if (callback) callback(e, null);
+        }
     },
+    
     run: (sql, params, callback) => {
-        if (!db) return callback(new Error("DB null"));
+        if (!db) {
+            if (callback) callback(new Error("DB null"), null);
+            return;
+        }
         try {
             db.run(sql, params);
             saveDB();
-            callback(null, {});
-        } catch (e) { callback(e, null); }
+            if (callback) callback(null, {});
+        } catch (e) {
+            if (callback) callback(e, null);
+        }
     },
+    
     all: (sql, params, callback) => {
-        if (!db) return callback(new Error("DB null"));
+        if (!db) {
+            if (callback) callback(new Error("DB null"), null);
+            return;
+        }
         try {
             const stmt = db.prepare(sql);
             if (params) stmt.bind(params);
@@ -175,7 +187,9 @@ module.exports = {
                 res.push(obj);
             }
             stmt.free();
-            callback(null, res);
-        } catch (e) { callback(e, null); }
+            if (callback) callback(null, res);
+        } catch (e) {
+            if (callback) callback(e, null);
+        }
     }
 };
