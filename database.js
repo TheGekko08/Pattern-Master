@@ -38,7 +38,7 @@ async function initDB() {
             console.log("🌱 Generando 200 patrones (50 por dificultad)...");
             const stmtInsert = db.prepare("INSERT INTO secuencias (numeros, respuesta, dificultad) VALUES (?, ?, ?)");
 
-            // FÁCIL - 50 patrones (sumas y restas simples)
+            // FÁCIL - 50 patrones
             for (let i = 0; i < 25; i++) {
                 let s = Math.floor(Math.random() * 20) + 1;
                 let step = Math.floor(Math.random() * 9) + 1;
@@ -50,7 +50,7 @@ async function initDB() {
                 stmtInsert.run([`${s}, ${s - step}, ${s - step * 2}, ${s - step * 3}`, s - step * 4, 'fácil']);
             }
 
-            // MEDIO - 50 patrones (multiplicación y cuadrados)
+            // MEDIO - 50 patrones
             for (let i = 0; i < 25; i++) {
                 let s = Math.floor(Math.random() * 5) + 1;
                 let m = Math.floor(Math.random() * 3) + 2;
@@ -66,7 +66,7 @@ async function initDB() {
                 stmtInsert.run([seq.join(', '), resp, 'medio']);
             }
 
-            // DIFÍCIL - 50 patrones (cubos y primos)
+            // DIFÍCIL - 50 patrones
             const primos = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229];
             for (let i = 0; i < 25; i++) {
                 if (i + 4 < primos.length) {
@@ -80,7 +80,7 @@ async function initDB() {
                 stmtInsert.run([seq.join(', '), resp, 'difícil']);
             }
 
-            // EXPERTO - 50 patrones (factoriales, fibonacci, combinados)
+            // EXPERTO - 50 patrones
             for (let i = 0; i < 17; i++) {
                 if (i + 4 <= 7) {
                     let seq = [];
