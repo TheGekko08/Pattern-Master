@@ -28,7 +28,6 @@ const TIMER_SECONDS = {
 
 console.log("🚀 Iniciando servidor Pattern Master...");
 
-// ─── REGISTRO ────────────────────────────────────────────────────────────────
 app.post('/api/register', (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: "Datos incompletos" });
@@ -56,14 +55,11 @@ app.post('/api/register', (req, res) => {
     });
 });
 
-// ─── LOGIN CON BLOQUEO POR INTENTOS ──────────────────────────────────────────
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
-    
     db.get("SELECT * FROM users WHERE username = ?", [username], (err, user) => {
         if (err || !user) return res.status(400).json({ error: "Usuario no encontrado" });
         
-        // Verificar si está bloqueado
         const now = Date.now();
         if (user.locked_until && user.locked_until > now) {
             const remaining = Math.ceil((user.locked_until - now) / 1000);
@@ -74,14 +70,12 @@ app.post('/api/login', (req, res) => {
             });
         }
         
-        // Si estaba bloqueado pero ya pasó el tiempo, resetear
         if (user.locked_until && user.locked_until <= now) {
             db.run("UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?", [user.id]);
         }
 
         bcrypt.compare(password, user.password, (err, match) => {
             if (match) {
-                // Login exitoso: resetear intentos
                 db.run("UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?", [user.id]);
                 res.json({
                     success: true,
@@ -93,11 +87,9 @@ app.post('/api/login', (req, res) => {
                     score_experto: user.score_experto
                 });
             } else {
-                // Login fallido: incrementar intentos
                 const newAttempts = (user.failed_attempts || 0) + 1;
                 
                 if (newAttempts >= 5) {
-                    // Bloquear por 15 minutos (900000 ms)
                     const lockedUntil = Date.now() + 15 * 60 * 1000;
                     db.run("UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?", [newAttempts, lockedUntil, user.id]);
                     return res.status(403).json({ 
@@ -116,7 +108,6 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// ─── ACTUALIZAR PUNTUACIÓN ───────────────────────────────────────────────────
 app.post('/api/update-score', (req, res) => {
     const { userId, points, dificultad } = req.body;
     const col = DIFF_COL[dificultad];
@@ -136,7 +127,6 @@ app.post('/api/update-score', (req, res) => {
     });
 });
 
-// ─── LEADERBOARD ─────────────────────────────────────────────────────────────
 app.get('/api/leaderboard', (req, res) => {
     const dificultad = req.query.dificultad || 'fácil';
     const col = DIFF_COL[dificultad];
@@ -148,7 +138,6 @@ app.get('/api/leaderboard', (req, res) => {
     });
 });
 
-// ─── NUEVA SECUENCIA (con tiempo límite) ─────────────────────────────────────
 app.get('/api/nueva-secuencia', (req, res) => {
     const dificultad = req.query.dificultad || 'fácil';
     if (!DIFF_COL[dificultad]) return res.status(400).json({ error: "Dificultad inválida" });
@@ -166,7 +155,6 @@ app.get('/api/nueva-secuencia', (req, res) => {
     });
 });
 
-// ─── VERIFICAR RESPUESTA ─────────────────────────────────────────────────────
 app.post('/api/verificar', (req, res) => {
     const { id, respuestaUsuario } = req.body;
     db.get("SELECT respuesta FROM secuencias WHERE id = ?", [id], (err, row) => {
