@@ -1,74 +1,66 @@
-const initSqlJs = require('sql.js');
-const fs = require('fs');
+// database.js
+const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
 const DB_PATH = path.join(__dirname, 'patrones.db');
 let db = null;
-let SQL = null;
 
-async function initDB() {
+function initDB() {
     try {
-        SQL = await initSqlJs();
+        // Crear/conectar a la base de datos SQLite real
+        db = new Database(DB_PATH);
+        console.log("🗄️  Conectado a patrones.db");
+
+        // Habilitar claves foráneas
+        db.pragma('foreign_keys = ON');
+
+        // Crear tabla de usuarios si no existe
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                score_facil INTEGER DEFAULT 0,
+                score_medio INTEGER DEFAULT 0,
+                score_dificil INTEGER DEFAULT 0,
+                score_experto INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Crear tabla de secuencias si no existe
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS secuencias (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                numeros TEXT NOT NULL,
+                respuesta REAL NOT NULL,
+                dificultad TEXT NOT NULL
+            )
+        `);
+
+        // Verificar si hay patrones, si no, generarlos
+        const count = db.prepare('SELECT COUNT(*) as c FROM secuencias').get();
         
-        // Crear nueva base de datos
-        db = new SQL.Database();
-        console.log("🆕 Base de datos creada en memoria");
-
-        // Crear tabla de usuarios
-        db.run(`CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            score_facil INTEGER DEFAULT 0,
-            score_medio INTEGER DEFAULT 0,
-            score_dificil INTEGER DEFAULT 0,
-            score_experto INTEGER DEFAULT 0
-        )`);
-
-        // Crear tabla de secuencias
-        db.run(`CREATE TABLE IF NOT EXISTS secuencias (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            numeros TEXT NOT NULL,
-            respuesta REAL NOT NULL,
-            dificultad TEXT NOT NULL
-        )`);
-
-        // Verificar cuántos patrones hay
-        const stmtCount = db.prepare("SELECT COUNT(*) as count FROM secuencias");
-        stmtCount.step();
-        const result = stmtCount.get();
-        const count = result ? result.count : 0;
-        stmtCount.free();
-
-        console.log(`📊 Patrones existentes: ${count}`);
-
-        // Si hay menos de 200 patrones, generarlos
-        if (count < 200) {
+        if (count.c < 200) {
             console.log("🌱 Generando 200 patrones (50 por dificultad)...");
-            
-            // Borrar patrones existentes para regenerar
-            db.run("DELETE FROM secuencias");
-            
-            const stmtInsert = db.prepare("INSERT INTO secuencias (numeros, respuesta, dificultad) VALUES (?, ?, ?)");
+            const insert = db.prepare('INSERT INTO secuencias (numeros, respuesta, dificultad) VALUES (?, ?, ?)');
+            const transaction = db.transaction((patterns) => {
+                for (const p of patterns) insert.run(p);
+            });
 
-            // FÁCIL - 50 patrones (sumas y restas)
+            const patterns = [];
+
+            // FÁCIL - 50 patrones (sumas/restas simples)
             for (let i = 0; i < 25; i++) {
                 let s = Math.floor(Math.random() * 20) + 1;
                 let step = Math.floor(Math.random() * 9) + 1;
-                stmtInsert.run([
-                    `${s}, ${s + step}, ${s + step * 2}, ${s + step * 3}`,
-                    s + step * 4,
-                    'fácil'
-                ]);
+                patterns.push([`${s}, ${s + step}, ${s + step * 2}, ${s + step * 3}`, s + step * 4, 'fácil']);
             }
             for (let i = 0; i < 25; i++) {
                 let s = Math.floor(Math.random() * 50) + 20;
                 let step = Math.floor(Math.random() * 5) + 1;
-                stmtInsert.run([
-                    `${s}, ${s - step}, ${s - step * 2}, ${s - step * 3}`,
-                    s - step * 4,
-                    'fácil'
-                ]);
+                patterns.push([`${s}, ${s - step}, ${s - step * 2}, ${s - step * 3}`, s - step * 4, 'fácil']);
             }
 
             // MEDIO - 50 patrones (multiplicación y cuadrados)
@@ -77,44 +69,28 @@ async function initDB() {
                 let m = Math.floor(Math.random() * 3) + 2;
                 let seq = [s, s * m, s * m * m, s * Math.pow(m, 3)].map(n => Math.round(n));
                 let resp = Math.round(s * Math.pow(m, 4));
-                if (resp < 10000) {
-                    stmtInsert.run([seq.join(', '), resp, 'medio']);
-                }
+                if (resp < 10000) patterns.push([seq.join(', '), resp, 'medio']);
             }
             for (let i = 0; i < 25; i++) {
                 let n = Math.floor(Math.random() * 5) + 1;
                 let offset = Math.floor(Math.random() * 3);
-                let seq = [
-                    Math.pow(n, 2) + offset,
-                    Math.pow(n + 1, 2) + offset,
-                    Math.pow(n + 2, 2) + offset,
-                    Math.pow(n + 3, 2) + offset
-                ];
+                let seq = [Math.pow(n, 2) + offset, Math.pow(n + 1, 2) + offset, Math.pow(n + 2, 2) + offset, Math.pow(n + 3, 2) + offset];
                 let resp = Math.pow(n + 4, 2) + offset;
-                stmtInsert.run([seq.join(', '), resp, 'medio']);
+                patterns.push([seq.join(', '), resp, 'medio']);
             }
 
             // DIFÍCIL - 50 patrones (primos y cubos)
             const primos = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229];
             for (let i = 0; i < 25; i++) {
                 if (i + 4 < primos.length) {
-                    stmtInsert.run([
-                        `${primos[i]}, ${primos[i + 1]}, ${primos[i + 2]}, ${primos[i + 3]}`,
-                        primos[i + 4],
-                        'difícil'
-                    ]);
+                    patterns.push([`${primos[i]}, ${primos[i + 1]}, ${primos[i + 2]}, ${primos[i + 3]}`, primos[i + 4], 'difícil']);
                 }
             }
             for (let i = 0; i < 25; i++) {
                 let n = Math.floor(Math.random() * 6) + 1;
-                let seq = [
-                    Math.pow(n, 3),
-                    Math.pow(n + 1, 3),
-                    Math.pow(n + 2, 3),
-                    Math.pow(n + 3, 3)
-                ];
+                let seq = [Math.pow(n, 3), Math.pow(n + 1, 3), Math.pow(n + 2, 3), Math.pow(n + 3, 3)];
                 let resp = Math.pow(n + 4, 3);
-                stmtInsert.run([seq.join(', '), resp, 'difícil']);
+                patterns.push([seq.join(', '), resp, 'difícil']);
             }
 
             // EXPERTO - 50 patrones (factoriales, fibonacci, combinados)
@@ -122,24 +98,20 @@ async function initDB() {
                 if (i + 4 <= 7) {
                     let seq = [];
                     for (let k = 0; k < 4; k++) {
-                        let num = i + k + 1;
-                        let fact = 1;
+                        let num = i + k + 1, fact = 1;
                         for (let x = 1; x <= num; x++) fact *= x;
                         seq.push(fact);
                     }
-                    let nextNum = i + 5;
-                    let resp = 1;
+                    let nextNum = i + 5, resp = 1;
                     for (let x = 1; x <= nextNum; x++) resp *= x;
-                    stmtInsert.run([seq.join(', '), resp, 'experto']);
+                    patterns.push([seq.join(', '), resp, 'experto']);
                 }
             }
             for (let i = 0; i < 17; i++) {
                 let a = Math.floor(Math.random() * 5) + 1;
                 let b = Math.floor(Math.random() * 5) + 1;
-                let c = a + b;
-                let d = b + c;
-                let e = c + d;
-                stmtInsert.run([`${a}, ${b}, ${c}, ${d}`, e, 'experto']);
+                let c = a + b, d = b + c, e = c + d;
+                patterns.push([`${a}, ${b}, ${c}, ${d}`, e, 'experto']);
             }
             for (let i = 0; i < 16; i++) {
                 let s = Math.floor(Math.random() * 10) + 1;
@@ -147,75 +119,52 @@ async function initDB() {
                 let b = Math.floor(Math.random() * 7) + 2;
                 let seq = [s, s + a, s + a + b, s + 2 * a + b];
                 let resp = s + 2 * a + 2 * b;
-                stmtInsert.run([seq.join(', '), resp, 'experto']);
+                patterns.push([seq.join(', '), resp, 'experto']);
             }
 
-            stmtInsert.free();
-            
-            // Guardar en archivo
-            const data = db.export();
-            fs.writeFileSync(DB_PATH, Buffer.from(data));
-            
-            console.log("✨ 200 patrones generados y guardados exitosamente");
+            transaction(patterns);
+            console.log("✨ 200 patrones guardados en patrones.db");
         }
 
-        console.log("✅ Base de datos lista");
+        console.log("✅ DB lista.");
+        return db;
     } catch (err) {
-        console.error("❌ Error en DB:", err);
+        console.error("❌ Error DB:", err);
         throw err;
     }
 }
 
+// Funciones helper para mantener compatibilidad con el código asíncrono
 module.exports = {
-    init: initDB,
+    init: () => Promise.resolve(initDB()),
     
     get: (sql, params, callback) => {
-        if (!db) return callback(new Error("DB null"));
         try {
             const stmt = db.prepare(sql);
-            if (params) stmt.bind(params);
-            if (stmt.step()) {
-                const cols = stmt.getColumnNames();
-                const vals = stmt.get();
-                const obj = {};
-                cols.forEach((c, i) => obj[c] = vals[i]);
-                callback(null, obj);
-            } else {
-                callback(null, null);
-            }
-            stmt.free();
-        } catch (e) {
-            callback(e, null);
-        }
-    },
-    
-    run: (sql, params, callback) => {
-        if (!db) return callback(new Error("DB null"));
-        try {
-            db.run(sql, params);
-            callback(null, {});
-        } catch (e) {
-            callback(e, null);
+            const row = stmt.get(...params);
+            callback(null, row || null);
+        } catch (err) {
+            callback(err, null);
         }
     },
     
     all: (sql, params, callback) => {
-        if (!db) return callback(new Error("DB null"));
         try {
             const stmt = db.prepare(sql);
-            if (params) stmt.bind(params);
-            const cols = stmt.getColumnNames();
-            const res = [];
-            while (stmt.step()) {
-                const vals = stmt.get();
-                const obj = {};
-                cols.forEach((c, i) => obj[c] = vals[i]);
-                res.push(obj);
-            }
-            stmt.free();
-            callback(null, res);
-        } catch (e) {
-            callback(e, null);
+            const rows = stmt.all(...params);
+            callback(null, rows);
+        } catch (err) {
+            callback(err, null);
+        }
+    },
+    
+    run: (sql, params, callback) => {
+        try {
+            const stmt = db.prepare(sql);
+            const info = stmt.run(...params);
+            callback(null, { lastID: info.lastInsertRowid, changes: info.changes });
+        } catch (err) {
+            callback(err, null);
         }
     }
 };

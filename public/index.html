@@ -5,14 +5,230 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pattern Master | Ultimate</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #00D2FC;
+            --success: #00E676;
+            --danger: #FF5252;
+            --warning: #FFD740;
+            --dark: #1A1A2E;
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(-45deg, #0f0c29, #302b63, #24243e, #141E30);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            background: var(--glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2.5rem;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .container.flash-success { box-shadow: 0 0 50px var(--success); border-color: var(--success); }
+        .container.flash-error { box-shadow: 0 0 50px var(--danger); border-color: var(--danger); }
+        .container.flash-warning { box-shadow: 0 0 50px var(--warning); border-color: var(--warning); }
+
+        h1, h2, h3 { text-align: center; margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: 2px; }
+        h1 { background: linear-gradient(to right, var(--secondary), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; }
+
+        /* Inputs con toggle de contraseña */
+        .input-group {
+            position: relative;
+            margin: 10px 0;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+
+        input[type="password"], input[type="text"] {
+            padding-right: 50px;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--secondary);
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+            transition: 0.3s;
+        }
+
+        .toggle-password:hover { color: white; }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 15px rgba(0, 210, 252, 0.3);
+        }
+
+        option { background: var(--dark); }
+
+        /* Botones */
+        button {
+            width: 100%;
+            padding: 15px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary { background: linear-gradient(45deg, var(--primary), #8E2DE2); color: white; box-shadow: 0 4px 15px rgba(108, 99, 255, 0.4); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(108, 99, 255, 0.6); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .btn-success { background: linear-gradient(45deg, #00b09b, #96c93d); color: white; box-shadow: 0 4px 15px rgba(0, 230, 118, 0.4); }
+        .btn-success:hover { transform: translateY(-2px); }
+
+        .btn-outline { background: transparent; border: 2px solid var(--glass-border); color: rgba(255,255,255,0.7); }
+        .btn-outline:hover, .btn-outline.active { background: var(--glass); color: white; border-color: white; }
+
+        .btn-danger { background: linear-gradient(45deg, #cb2d3e, #ef473a); color: white; }
+
+        /* Utilidades */
+        .hidden { display: none; }
+        .error-msg { color: var(--danger); text-align: center; font-size: 0.9rem; min-height: 20px; margin-bottom: 10px; }
+        .link { color: var(--secondary); cursor: pointer; text-decoration: underline; font-size: 0.9rem; text-align: center; display: block; margin-top: 15px; }
+
+        /* Temporizador */
+        .timer-display {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--warning);
+            margin: 15px 0;
+            font-family: 'JetBrains Mono', monospace;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .timer-warning { color: var(--danger); animation: pulse 0.5s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Game Specifics */
+        .game-header { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 15px; margin-bottom: 20px; }
+        .score-badge { background: linear-gradient(45deg, #FFD700, #FFA500); color: #000; padding: 8px 15px; border-radius: 20px; font-weight: bold; box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        
+        .difficulty-info { text-align: center; margin-bottom: 15px; font-size: 0.9rem; color: rgba(255,255,255,0.6); }
+        .difficulty-info span { color: var(--warning); font-weight: bold; }
+
+        .sequence-box {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.8rem;
+            text-align: center;
+            margin: 20px 0;
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px dashed var(--glass-border);
+            color: var(--secondary);
+            text-shadow: 0 0 10px rgba(0, 210, 252, 0.5);
+            word-break: break-all;
+        }
+
+        .feedback { text-align: center; font-weight: bold; font-size: 1.2rem; min-height: 30px; margin: 10px 0; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .feedback.correct { color: var(--success); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .feedback.wrong { color: var(--danger); animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+
+        @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+
+        /* Leaderboard */
+        .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 10px; background: rgba(0,0,0,0.2); border-radius: 15px; overflow: hidden; }
+        .leaderboard-table th { background: rgba(255,255,255,0.1); padding: 12px; text-align: left; font-size: 0.85rem; color: rgba(255,255,255,0.7); }
+        .leaderboard-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.95rem; }
+        .rank-1 { color: #FFD700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        .rank-2 { color: #C0C0C0; }
+        .rank-3 { color: #CD7F32; }
+        .my-row { background: rgba(108, 99, 255, 0.2); border-left: 4px solid var(--primary); }
+
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 15px; }
+        .nav-tabs button { margin: 0; border-radius: 10px; font-size: 0.9rem; padding: 10px; }
+        .nav-tabs button.active { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+
+        /* Bloqueo de cuenta */
+        .blocked-message {
+            background: rgba(255, 82, 82, 0.2);
+            border: 2px solid var(--danger);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .blocked-message h3 { color: var(--danger); margin-bottom: 10px; }
+        .blocked-message p { color: rgba(255,255,255,0.8); }
+        .countdown { font-size: 2rem; font-weight: bold; color: var(--danger); font-family: 'JetBrains Mono', monospace; }
+    </style>
 </head>
 <body>
+
     <div class="container" id="main-container">
-        <!-- AUTH -->
+        <!-- VISTA: AUTH -->
         <div id="view-auth">
             <h1>Pattern Master</h1>
             <div id="auth-error" class="error-msg"></div>
+            
+            <!-- Mensaje de bloqueo -->
+            <div id="blocked-message" class="blocked-message hidden">
+                <h3>🔒 Cuenta Bloqueada</h3>
+                <p>Demasiados intentos fallidos. Intenta de nuevo en:</p>
+                <div class="countdown" id="block-countdown">15:00</div>
+            </div>
             
             <div id="form-login">
                 <div class="input-group">
@@ -22,7 +238,7 @@
                     <input type="password" id="login-pass" placeholder="Contraseña">
                     <button type="button" class="toggle-password" onclick="togglePassword('login-pass')">👁️</button>
                 </div>
-                <button class="btn-primary" onclick="login()">Iniciar Sesión</button>
+                <button class="btn-primary" onclick="login()" id="btn-login">Iniciar Sesión</button>
                 <span class="link" onclick="toggleAuth('register')">¿Nuevo? Crear cuenta</span>
             </div>
 
@@ -39,14 +255,14 @@
             </div>
         </div>
 
-        <!-- MAIN -->
+        <!-- VISTA: MAIN (Juego + Ranking) -->
         <div id="view-main" class="hidden">
             <div class="nav-tabs">
                 <button id="tab-game" class="btn-outline active" onclick="switchTab('game')">🎮 Jugar</button>
                 <button id="tab-rank" class="btn-outline" onclick="switchTab('rank')">🏆 Ranking Global</button>
             </div>
 
-            <!-- GAME -->
+            <!-- JUEGO -->
             <div id="content-game">
                 <div class="game-header">
                     <span id="user-display" style="font-weight:bold;">Jugador</span>
@@ -55,15 +271,18 @@
 
                 <div class="difficulty-info">
                     Nivel: 
-                    <select id="diff-select" onchange="loadSequence()">
+                    <select id="diff-select" onchange="loadSequence()" style="width: auto; padding: 5px 10px; display: inline-block; margin:0; vertical-align: middle; background: rgba(0,0,0,0.5); border:none; color:white;">
                         <option value="fácil">Fácil</option>
                         <option value="medio">Medio</option>
                         <option value="difícil">Difícil</option>
                         <option value="experto">Experto</option>
                     </select>
                     <br>
-                    <small>Gana <span id="win-points">10</span> | Pierde <span id="lose-points">5</span></small>
+                    <small style="color:rgba(255,255,255,0.5)">Gana <span id="win-points">10</span> | Pierde <span id="lose-points">5</span></small>
                 </div>
+
+                <!-- Temporizador -->
+                <div class="timer-display" id="timer-display">⏱️ 20s</div>
 
                 <div class="sequence-box" id="sequence-text">Cargando...</div>
                 
@@ -73,7 +292,7 @@
                 <button id="btn-submit" class="btn-primary" onclick="checkAnswer()">Verificar Respuesta</button>
                 <button id="btn-next" class="btn-success hidden" onclick="loadSequence()">Siguiente Patrón ➜</button>
                 
-                <button class="btn-danger" style="margin-top: 30px;" onclick="logout()">Cerrar Sesión</button>
+                <button class="btn-danger" style="margin-top: 30px; background: transparent; border: 1px solid rgba(255,82,82,0.5); font-size: 0.8rem;" onclick="logout()">Cerrar Sesión</button>
             </div>
 
             <!-- RANKING -->
@@ -94,6 +313,9 @@
         let currentUser = null;
         let currentSequenceId = null;
         let currentDifficulty = 'fácil';
+        let timerInterval = null;
+        let timeLeft = 20;
+        let blockInterval = null;
 
         const POINTS_CONFIG = {
             'fácil': { win: 10, lose: 5 },
@@ -102,8 +324,16 @@
             'experto': { win: 80, lose: 40 }
         };
 
+        const TIMER_CONFIG = {
+            'fácil': 20,
+            'medio': 35,
+            'difícil': 60,
+            'experto': 90
+        };
+
         function toggleAuth(mode) {
             document.getElementById('auth-error').innerText = '';
+            document.getElementById('blocked-message').classList.add('hidden');
             if(mode === 'register') {
                 document.getElementById('form-login').classList.add('hidden');
                 document.getElementById('form-register').classList.remove('hidden');
@@ -144,28 +374,31 @@
             const user = document.getElementById('reg-user').value;
             const pass = document.getElementById('reg-pass').value;
             const res = await fetch('/api/register', {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'},
+                method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ username: user, password: pass })
             });
             const data = await res.json();
-            if(data.success) { 
-                alert("¡Registro exitoso! Ahora inicia sesión."); 
-                toggleAuth('login'); 
-            } else {
-                document.getElementById('auth-error').innerText = data.error;
-            }
+            if(data.success) { alert("¡Registro exitoso! Ahora inicia sesión."); toggleAuth('login'); }
+            else document.getElementById('auth-error').innerText = data.error;
         }
 
         async function login() {
             const user = document.getElementById('login-user').value;
             const pass = document.getElementById('login-pass').value;
+            const btn = document.getElementById('btn-login');
+            
+            btn.disabled = true;
+            btn.innerText = 'Verificando...';
+            
             const res = await fetch('/api/login', {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'},
+                method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ username: user, password: pass })
             });
             const data = await res.json();
+            
+            btn.disabled = false;
+            btn.innerText = 'Iniciar Sesión';
+            
             if(data.success) {
                 currentUser = data;
                 document.getElementById('user-display').innerText = data.username;
@@ -174,34 +407,109 @@
                 loadSequence();
             } else {
                 document.getElementById('auth-error').innerText = data.error;
+                
+                if(data.blocked) {
+                    document.getElementById('form-login').classList.add('hidden');
+                    document.getElementById('blocked-message').classList.remove('hidden');
+                    startBlockCountdown(data.remainingSeconds);
+                }
             }
+        }
+
+        function startBlockCountdown(seconds) {
+            let remaining = seconds;
+            
+            blockInterval = setInterval(() => {
+                remaining--;
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                document.getElementById('block-countdown').innerText = 
+                    `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                if(remaining <= 0) {
+                    clearInterval(blockInterval);
+                    document.getElementById('blocked-message').classList.add('hidden');
+                    document.getElementById('form-login').classList.remove('hidden');
+                    document.getElementById('auth-error').innerText = '';
+                }
+            }, 1000);
         }
 
         function logout() {
             currentUser = null;
+            if(timerInterval) clearInterval(timerInterval);
+            if(blockInterval) clearInterval(blockInterval);
             document.getElementById('login-user').value = '';
             document.getElementById('login-pass').value = '';
+            document.getElementById('auth-error').innerText = '';
             showView('view-auth');
         }
 
         function updateScoreDisplay(newScore) {
             const el = document.getElementById('score-display');
-            el.innerText = Math.round(newScore);
-            if(currentUser) currentUser.score_facil = newScore;
+            const finalScore = Math.round(newScore);
+            el.innerText = finalScore;
+            
+            el.style.transform = "scale(1.2)";
+            setTimeout(() => el.style.transform = "scale(1)", 200);
+            
+            if(currentUser) currentUser.score_facil = finalScore;
+        }
+
+        function startTimer(seconds) {
+            if(timerInterval) clearInterval(timerInterval);
+            
+            timeLeft = seconds;
+            const timerDisplay = document.getElementById('timer-display');
+            timerDisplay.classList.remove('timer-warning');
+            
+            updateTimerDisplay();
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if(timeLeft <= 10) {
+                    timerDisplay.classList.add('timer-warning');
+                }
+                
+                if(timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('game-feedback').innerText = '⏰ ¡Tiempo agotado!';
+                    document.getElementById('game-feedback').className = 'feedback wrong';
+                    document.getElementById('game-input').disabled = true;
+                    document.getElementById('btn-submit').classList.add('hidden');
+                    document.getElementById('btn-next').classList.remove('hidden');
+                    
+                    if(currentUser) {
+                        const config = POINTS_CONFIG[currentDifficulty];
+                        saveScore(-config.lose);
+                    }
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const timerDisplay = document.getElementById('timer-display');
+            timerDisplay.innerText = `⏱️ ${timeLeft}s`;
         }
 
         async function loadSequence() {
             currentDifficulty = document.getElementById('diff-select').value;
             const config = POINTS_CONFIG[currentDifficulty];
+            const timeLimit = TIMER_CONFIG[currentDifficulty];
             
             document.getElementById('win-points').innerText = `+${config.win}`;
             document.getElementById('lose-points').innerText = `-${config.lose}`;
 
             document.getElementById('game-input').value = '';
+            document.getElementById('game-input').disabled = false;
             document.getElementById('btn-submit').classList.remove('hidden');
             document.getElementById('btn-next').classList.add('hidden');
             document.getElementById('game-feedback').innerText = '';
-            document.getElementById('sequence-text').innerText = "Cargando...";
+            document.getElementById('game-feedback').className = 'feedback';
+            document.getElementById('sequence-text').innerText = "...";
+            document.getElementById('main-container').classList.remove('flash-success', 'flash-error');
 
             const res = await fetch(`/api/nueva-secuencia?dificultad=${currentDifficulty}`);
             if(!res.ok) {
@@ -212,22 +520,24 @@
             currentSequenceId = data.id;
             document.getElementById('sequence-text').innerText = data.numeros;
             document.getElementById('game-input').focus();
+            
+            // Iniciar temporizador
+            startTimer(data.timeLimit || timeLimit);
         }
 
-        function handleEnter(e) { 
-            if(e.key === 'Enter') checkAnswer(); 
-        }
+        function handleEnter(e) { if(e.key === 'Enter') checkAnswer(); }
 
         async function checkAnswer() {
             const val = document.getElementById('game-input').value;
             const feedback = document.getElementById('game-feedback');
-            const config = POINTS_CONFIG[currentDifficulty];
-
+            const container = document.getElementById('main-container');
+            
             if(val === '') return;
 
+            const config = POINTS_CONFIG[currentDifficulty];
+
             const res = await fetch('/api/verificar', {
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'},
+                method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ id: currentSequenceId, respuestaUsuario: val })
             });
             const data = await res.json();
@@ -235,9 +545,14 @@
             if(data.correcto) {
                 feedback.innerText = `¡CORRECTO! +${config.win} Puntos`;
                 feedback.className = "feedback correct";
+                container.classList.add('flash-success');
+                setTimeout(() => container.classList.remove('flash-success'), 500);
+                
                 document.getElementById('game-input').disabled = true;
                 document.getElementById('btn-submit').classList.add('hidden');
                 document.getElementById('btn-next').classList.remove('hidden');
+                
+                if(timerInterval) clearInterval(timerInterval);
                 
                 const newScore = (currentUser[`score_${currentDifficulty}`] || 0) + config.win;
                 currentUser[`score_${currentDifficulty}`] = newScore;
@@ -246,7 +561,13 @@
             } else {
                 feedback.innerText = `INCORRECTO! -${config.lose} Puntos`;
                 feedback.className = "feedback wrong";
+                container.classList.add('flash-error');
+                setTimeout(() => container.classList.remove('flash-error'), 500);
+                
                 document.getElementById('game-input').value = '';
+                document.getElementById('game-input').focus();
+                
+                if(timerInterval) clearInterval(timerInterval);
                 
                 const newScore = Math.max(0, (currentUser[`score_${currentDifficulty}`] || 0) - config.lose);
                 currentUser[`score_${currentDifficulty}`] = newScore;
@@ -257,30 +578,40 @@
 
         async function saveScore(points) {
             try {
-                await fetch('/api/update-score', {
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'},
+                const res = await fetch('/api/update-score', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ 
                         userId: currentUser.userId, 
                         points: points,
                         dificultad: currentDifficulty
                     })
                 });
+                if(!res.ok) throw new Error("Error al guardar");
             } catch (e) {
-                console.error("Error guardando:", e);
+                console.error("Error guardando puntuación:", e);
             }
         }
 
         async function loadLeaderboard() {
-            const res = await fetch(`/api/leaderboard?dificultad=${currentDifficulty}`);
+            const dificultad = document.getElementById('diff-select') ? document.getElementById('diff-select').value : 'fácil';
+            const res = await fetch(`/api/leaderboard?dificultad=${dificultad}`);
             const data = await res.json();
             const tbody = document.getElementById('leaderboard-body');
             tbody.innerHTML = '';
 
             data.forEach((player, index) => {
                 const tr = document.createElement('tr');
+                let rankClass = '';
+                if(index === 0) rankClass = 'rank-1';
+                if(index === 1) rankClass = 'rank-2';
+                if(index === 2) rankClass = 'rank-3';
+                
+                if(currentUser && player.username === currentUser.username) {
+                    tr.classList.add('my-row');
+                }
+
                 tr.innerHTML = `
-                    <td>#${index + 1}</td>
+                    <td class="${rankClass}">#${index + 1}</td>
                     <td>${player.username} ${player.username === currentUser?.username ? '(Tú)' : ''}</td>
                     <td style="font-weight:bold; color: var(--warning)">${player.score}</td>
                 `;
