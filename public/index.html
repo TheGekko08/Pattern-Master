@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pattern Master | Ultimate</title>
+    <title>Pattern Master</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -49,15 +49,13 @@
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
-        h1, h2, h3 { text-align: center; margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: 2px; }
+        h1, h2 { text-align: center; margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: 2px; }
         h1 { background: linear-gradient(to right, var(--secondary), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-
-        .input-group { position: relative; margin: 10px 0; }
 
         input, select {
             width: 100%;
             padding: 15px;
-            padding-right: 50px;
+            margin: 10px 0;
             background: rgba(0, 0, 0, 0.3);
             border: 1px solid var(--glass-border);
             border-radius: 12px;
@@ -71,25 +69,6 @@
             border-color: var(--secondary);
             box-shadow: 0 0 15px rgba(0, 210, 252, 0.3);
         }
-
-        .toggle-password {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--secondary);
-            cursor: pointer;
-            font-size: 1.3rem;
-            padding: 8px;
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            z-index: 10;
-        }
-
-        .toggle-password:hover { color: white; background: rgba(255, 255, 255, 0.1); }
 
         button {
             width: 100%;
@@ -164,25 +143,15 @@
             <div id="auth-error" class="error-msg"></div>
             
             <div id="form-login">
-                <div class="input-group">
-                    <input type="text" id="login-user" placeholder="Nombre de Usuario">
-                </div>
-                <div class="input-group">
-                    <input type="password" id="login-pass" placeholder="Contraseña">
-                    <button type="button" class="toggle-password" onclick="togglePassword('login-pass')">👁️</button>
-                </div>
+                <input type="text" id="login-user" placeholder="Nombre de Usuario">
+                <input type="password" id="login-pass" placeholder="Contraseña">
                 <button class="btn-primary" onclick="login()">Iniciar Sesión</button>
                 <span class="link" onclick="toggleAuth('register')">¿Nuevo? Crear cuenta</span>
             </div>
 
             <div id="form-register" class="hidden">
-                <div class="input-group">
-                    <input type="text" id="reg-user" placeholder="Elige un Usuario">
-                </div>
-                <div class="input-group">
-                    <input type="password" id="reg-pass" placeholder="Contraseña">
-                    <button type="button" class="toggle-password" onclick="togglePassword('reg-pass')">👁️</button>
-                </div>
+                <input type="text" id="reg-user" placeholder="Elige un Usuario">
+                <input type="password" id="reg-pass" placeholder="Contraseña">
                 <button class="btn-success" onclick="register()">Registrarse</button>
                 <span class="link" onclick="toggleAuth('login')">Volver al Login</span>
             </div>
@@ -273,11 +242,6 @@
                 document.getElementById('form-register').classList.add('hidden');
                 document.getElementById('form-login').classList.remove('hidden');
             }
-        }
-
-        function togglePassword(inputId) {
-            const input = document.getElementById(inputId);
-            input.type = input.type === 'password' ? 'text' : 'password';
         }
 
         function showView(viewId) {

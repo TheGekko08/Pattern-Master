@@ -40,7 +40,7 @@ app.post('/api/register', (req, res) => {
                 db.get("SELECT id, username FROM users WHERE username = ?", [username], (err, row) => {
                     if (row) return res.json({ success: true, userId: row.id, username: row.username });
                     if (attempts > 0) setTimeout(() => tryFind(attempts - 1), 150);
-                    else res.status(500).json({ error: "Error de sincronización. Intenta de nuevo." });
+                    else res.status(500).json({ error: "Error de sincronización" });
                 });
             };
             tryFind(5);
@@ -82,11 +82,10 @@ app.post('/api/update-score', (req, res) => {
 
         const current = row.current || 0;
         const newScore = Math.max(0, current + points);
-        const delta = newScore - current;
 
         db.run(`UPDATE users SET ${col} = ? WHERE id = ?`, [newScore, userId], (err) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ success: true, newScore, delta });
+            res.json({ success: true, newScore });
         });
     });
 });
@@ -104,12 +103,24 @@ app.get('/api/leaderboard', (req, res) => {
 
 app.get('/api/nueva-secuencia', (req, res) => {
     const dificultad = req.query.dificultad || 'fácil';
-    if (!DIFF_COL[dificultad]) return res.status(400).json({ error: "Dificultad inválida" });
+    console.log(`🎲 Pidiendo patrón: ${dificultad}`);
+
+    if (!db) {
+        console.error("❌ DB es nula");
+        return res.status(500).json({ error: "DB no iniciada" });
+    }
 
     db.get("SELECT * FROM secuencias WHERE dificultad = ? ORDER BY RANDOM() LIMIT 1", [dificultad], (err, row) => {
-        if (err) return res.status(500).json({ error: "Error SQL: " + err.message });
-        if (!row) return res.status(404).json({ error: "Sin patrones para esta dificultad" });
-        
+        if (err) {
+            console.error("❌ Error SQL:", err.message);
+            return res.status(500).json({ error: "Error SQL: " + err.message });
+        }
+        if (!row) {
+            console.warn("⚠️ Sin patrones para:", dificultad);
+            return res.status(404).json({ error: "Sin patrones" });
+        }
+
+        console.log(`✅ Patrón encontrado: ${row.numeros}`);
         res.json({ id: row.id, numeros: row.numeros, dificultad: row.dificultad });
     });
 });
