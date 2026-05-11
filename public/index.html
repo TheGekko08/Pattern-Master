@@ -90,11 +90,11 @@
         .btn-danger { background: linear-gradient(45deg, #cb2d3e, #ef473a); color: white; }
         .btn-guest { background: linear-gradient(45deg, #667eea, #764ba2); color: white; }
 
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         .error-msg { color: var(--danger); text-align: center; font-size: 0.9rem; min-height: 20px; margin-bottom: 10px; }
         .link { color: var(--secondary); cursor: pointer; text-decoration: underline; font-size: 0.9rem; text-align: center; display: block; margin-top: 15px; }
 
-        .instructions { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 15px; margin: 20px 0; text-align: left; }
+        .instructions { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 15px; margin: 20px 0; }
         .instructions li { margin: 10px 0; list-style: none; }
         .instructions li::before { content: "✓ "; color: var(--success); }
 
@@ -135,11 +135,12 @@
             top: 0; left: 0;
             width: 100%; height: 100%;
             background: rgba(0,0,0,0.8);
-            display: flex;
+            display: none;
             justify-content: center;
             align-items: center;
             z-index: 1000;
         }
+        .modal.active { display: flex; }
         .modal-content {
             background: var(--dark);
             padding: 30px;
@@ -164,7 +165,6 @@
 </head>
 <body>
     <div class="container" id="main-container">
-        <!-- 1. LOGIN -->
         <div id="view-login">
             <h1>Pattern Master</h1>
             <div id="auth-error" class="error-msg"></div>
@@ -185,7 +185,6 @@
             </div>
         </div>
 
-        <!-- 2. INSTRUCCIONES -->
         <div id="view-instructions" class="hidden">
             <h1>¿Cómo Jugar?</h1>
             <div class="instructions">
@@ -198,7 +197,6 @@
             <button class="btn-primary" onclick="showDifficultySelect()">¡Entendido, a Jugar! 🎮</button>
         </div>
 
-        <!-- 3. SELECCIÓN DE DIFICULTAD -->
         <div id="view-difficulty" class="hidden difficulty-select">
             <h1>Selecciona Dificultad</h1>
             <p style="margin-bottom: 20px; color: rgba(255,255,255,0.7);">Elige tu nivel de desafío</p>
@@ -209,7 +207,6 @@
             <button style="background: linear-gradient(45deg, #8E2DE2, #4A00E0);" onclick="selectDifficulty('experto')">🟣 Experto (+80/-40)</button>
         </div>
 
-        <!-- 4. JUEGO -->
         <div id="view-game" class="hidden">
             <div class="nav-tabs">
                 <button id="tab-game" class="btn-outline active" onclick="switchTab('game')">🎮 Jugar</button>
@@ -266,8 +263,7 @@
         </div>
     </div>
 
-    <!-- MODAL CAMBIAR DIFICULTAD -->
-    <div id="change-diff-modal" class="modal hidden">
+    <div id="change-diff-modal" class="modal">
         <div class="modal-content">
             <h3 style="color: var(--warning);">⚠️ Advertencia</h3>
             <p style="margin: 15px 0;">Al cambiar de dificultad <strong>perderás tu puntuación actual</strong> en esta dificultad.</p>
@@ -398,11 +394,11 @@
         }
 
         function showChangeDiffModal() {
-            document.getElementById('change-diff-modal').classList.remove('hidden');
+            document.getElementById('change-diff-modal').classList.add('active');
         }
 
         function closeChangeDiffModal() {
-            document.getElementById('change-diff-modal').classList.add('hidden');
+            document.getElementById('change-diff-modal').classList.remove('active');
         }
 
         function confirmChangeDiff() {
