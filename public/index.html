@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pattern Master</title>
+    <title>Pattern Master | Ultimate</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -81,7 +81,11 @@
             cursor: pointer;
             text-transform: uppercase;
             letter-spacing: 1px;
+            transition: all 0.3s ease;
         }
+
+        button:hover { transform: translateY(-2px); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
         .btn-primary { background: linear-gradient(45deg, var(--primary), #8E2DE2); color: white; }
         .btn-success { background: linear-gradient(45deg, #00b09b, #96c93d); color: white; }
@@ -92,6 +96,10 @@
         .hidden { display: none; }
         .error-msg { color: var(--danger); text-align: center; font-size: 0.9rem; min-height: 20px; margin-bottom: 10px; }
         .link { color: var(--secondary); cursor: pointer; text-decoration: underline; font-size: 0.9rem; text-align: center; display: block; margin-top: 15px; }
+
+        .instructions { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 15px; margin: 20px 0; }
+        .instructions li { margin: 10px 0; list-style: none; }
+        .instructions li::before { content: '✓ '; color: var(--success); }
 
         .game-header { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 15px; margin-bottom: 20px; }
         .score-badge { background: linear-gradient(45deg, #FFD700, #FFA500); color: #000; padding: 8px 15px; border-radius: 20px; font-weight: bold; }
@@ -115,12 +123,48 @@
         .feedback.correct { color: var(--success); }
         .feedback.wrong { color: var(--danger); }
 
+        .correct-answer {
+            background: rgba(0, 230, 118, 0.2);
+            border: 2px solid var(--success);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            margin: 15px 0;
+            font-size: 1.3rem;
+            color: var(--success);
+        }
+
         .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 10px; background: rgba(0,0,0,0.2); border-radius: 15px; overflow: hidden; }
         .leaderboard-table th { background: rgba(255,255,255,0.1); padding: 12px; text-align: left; font-size: 0.85rem; }
         .leaderboard-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
 
         .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 15px; }
         .nav-tabs button { margin: 0; border-radius: 10px; font-size: 0.9rem; padding: 10px; }
+
+        .difficulty-select { text-align: center; }
+        .difficulty-select button { margin: 10px 0; }
+
+        .modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: var(--dark);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 400px;
+            border: 2px solid var(--warning);
+        }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
+        .modal-buttons button { flex: 1; }
 
         .game-over {
             background: rgba(255, 82, 82, 0.2);
@@ -155,6 +199,28 @@
             </div>
         </div>
 
+        <div id="view-instructions" class="hidden">
+            <h1>¿Cómo Jugar?</h1>
+            <div class="instructions">
+                <li>El juego te mostrará una secuencia de números con una regla oculta</li>
+                <li>Descubre la regla y adivina el siguiente número</li>
+                <li>Ejemplo: 2, 4, 6, 8, ? → Respuesta: 10 (suma 2)</li>
+                <li>Tienes 3 vidas por partida</li>
+                <li>Cada dificultad tiene su propio ranking</li>
+            </div>
+            <button class="btn-primary" onclick="showDifficultySelect()">¡Entendido, a Jugar! 🎮</button>
+        </div>
+
+        <div id="view-difficulty" class="hidden difficulty-select">
+            <h1>Selecciona Dificultad</h1>
+            <p style="margin-bottom: 20px; color: rgba(255,255,255,0.7);">Elige tu nivel de desafío</p>
+
+            <button class="btn-success" onclick="selectDifficulty('fácil')">🟢 Fácil (+10/-5)</button>
+            <button class="btn-primary" onclick="selectDifficulty('medio')">🔵 Medio (+20/-10)</button>
+            <button class="btn-danger" onclick="selectDifficulty('difícil')">🔴 Difícil (+40/-20)</button>
+            <button style="background: linear-gradient(45deg, #8E2DE2, #4A00E0);" onclick="selectDifficulty('experto')">🟣 Experto (+80/-40)</button>
+        </div>
+
         <div id="view-game" class="hidden">
             <div class="nav-tabs">
                 <button id="tab-game" class="btn-outline active" onclick="switchTab('game')">🎮 Jugar</button>
@@ -163,7 +229,10 @@
 
             <div id="content-game">
                 <div class="game-header">
-                    <span id="user-display">Jugador</span>
+                    <div>
+                        <span id="user-display">Jugador</span>
+                        <span id="guest-badge" class="btn-success" style="padding: 3px 8px; border-radius: 10px; font-size: 0.7rem; margin-left: 5px; display: none;">Invitado</span>
+                    </div>
                     <div>
                         <span class="lives-display" id="lives-display">❤️❤️❤️</span>
                         <span class="score-badge" style="margin-left: 10px;">⭐ <span id="score-display">0</span></span>
@@ -172,6 +241,7 @@
 
                 <div class="difficulty-info">
                     <span id="current-difficulty">Fácil</span>
+                    <button class="btn-outline" onclick="showChangeDiffModal()" style="width: auto; padding: 5px 15px; margin-left: 10px; font-size: 0.8rem;">🔄 Cambiar</button>
                     <br>
                     <small>Gana <span id="win-points">10</span> | Pierde <span id="lose-points">5</span></small>
                 </div>
@@ -181,6 +251,8 @@
                     <p>Has perdido todas tus vidas en esta dificultad.</p>
                     <button class="btn-success" onclick="resetLives()">🔄 Reiniciar Vidas</button>
                 </div>
+
+                <div id="correct-answer-display" class="correct-answer hidden"></div>
 
                 <div class="sequence-box" id="sequence-text">Cargando...</div>
 
@@ -203,6 +275,8 @@
                     <button class="btn-outline" onclick="loadLeaderboard('experto', this)">🟣 Experto</button>
                 </div>
 
+                <p id="guest-warning" class="hidden" style="text-align: center; color: var(--warning); margin-bottom: 15px;">👤 Como invitado tu puntuación no se guarda</p>
+
                 <table class="leaderboard-table">
                     <thead>
                         <tr>
@@ -214,6 +288,18 @@
                     <tbody id="leaderboard-body"></tbody>
                 </table>
                 <button class="btn-primary" style="margin-top:20px;" onclick="switchTab('game')">Volver al Juego</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="change-diff-modal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: var(--warning);">⚠️ Advertencia</h3>
+            <p style="margin: 15px 0;">Al cambiar de dificultad <strong>perderás tu puntuación actual</strong> en esta dificultad.</p>
+            <p style="color: var(--danger); font-size: 0.9rem;">¿Estás seguro?</p>
+            <div class="modal-buttons">
+                <button class="btn-outline" onclick="closeChangeDiffModal()">Cancelar</button>
+                <button class="btn-danger" onclick="confirmChangeDiff()">Cambiar</button>
             </div>
         </div>
     </div>
@@ -245,16 +331,29 @@
         }
 
         function showView(viewId) {
-            ['view-login', 'view-game'].forEach(id => {
+            ['view-login', 'view-instructions', 'view-difficulty', 'view-game'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
             });
             document.getElementById(viewId).classList.remove('hidden');
+        }
+
+        function showDifficultySelect() {
+            showView('view-difficulty');
+        }
+
+        function selectDifficulty(diff) {
+            currentDifficulty = diff;
+            lives = 3;
+            answerSubmitted = false;
+            showView('view-game');
+            loadSequence();
         }
 
         function guestMode() {
             isGuest = true;
             currentUser = { username: 'Invitado' };
             document.getElementById('user-display').innerText = 'Invitado';
+            document.getElementById('guest-badge').style.display = 'inline-block';
             showView('view-game');
             loadSequence();
         }
@@ -304,10 +403,8 @@
             if(data.success) {
                 currentUser = data;
                 isGuest = false;
-                
-                // ✅ ACTUALIZAR NOMBRE DE USUARIO EN LA UI
                 document.getElementById('user-display').innerText = data.username;
-                
+                document.getElementById('guest-badge').style.display = 'none';
                 lives = 3;
                 updateLivesDisplay();
                 showView('view-game');
@@ -349,12 +446,26 @@
             document.getElementById('lives-display').innerText = hearts;
         }
 
+        function showChangeDiffModal() {
+            document.getElementById('change-diff-modal').classList.add('active');
+        }
+
+        function closeChangeDiffModal() {
+            document.getElementById('change-diff-modal').classList.remove('active');
+        }
+
+        function confirmChangeDiff() {
+            closeChangeDiffModal();
+            showView('view-difficulty');
+        }
+
         function resetLives() {
             lives = 3;
             answerSubmitted = false;
             updateLivesDisplay();
             document.getElementById('game-over').classList.add('hidden');
             document.getElementById('game-input').disabled = false;
+            document.getElementById('correct-answer-display').classList.add('hidden');
             loadSequence();
         }
 
@@ -371,9 +482,16 @@
 
             document.getElementById('game-input').value = '';
             document.getElementById('game-input').disabled = false;
-            document.getElementById('btn-submit').classList.remove('hidden');
+            
+            const submitBtn = document.getElementById('btn-submit');
+            submitBtn.innerText = 'Verificar Respuesta';
+            submitBtn.className = 'btn-primary';
+            submitBtn.onclick = checkAnswer;
+            submitBtn.classList.remove('hidden');
+            
             document.getElementById('btn-next').classList.add('hidden');
             document.getElementById('game-feedback').innerText = '';
+            document.getElementById('correct-answer-display').classList.add('hidden');
             document.getElementById('sequence-text').innerText = 'Cargando...';
             answerSubmitted = false;
 
@@ -420,10 +538,15 @@
             if(data.correcto) {
                 feedback.innerText = '¡CORRECTO! +' + diffConfig.win + ' Puntos';
                 feedback.className = 'feedback correct';
-                submitBtn.classList.add('hidden');
-                document.getElementById('btn-next').classList.remove('hidden');
-                answerSubmitted = true;
-
+                
+                submitBtn.innerText = 'Siguiente Patrón ➜';
+                submitBtn.className = 'btn-success';
+                submitBtn.onclick = function() {
+                    loadSequence();
+                };
+                submitBtn.disabled = false;
+                input.disabled = false;
+                
                 if(!isGuest && currentUser) {
                     const newScore = (currentUser['score_' + currentDifficulty] || 0) + diffConfig.win;
                     currentUser['score_' + currentDifficulty] = newScore;
@@ -433,22 +556,29 @@
             } else {
                 lives--;
                 updateLivesDisplay();
-                answerSubmitted = true;
-
+                
+                const correctAnswerDisplay = document.getElementById('correct-answer-display');
+                correctAnswerDisplay.innerText = '❌ La respuesta era: ' + data.respuestaCorrecta;
+                correctAnswerDisplay.classList.remove('hidden');
+                
                 feedback.innerText = 'INCORRECTO! -' + diffConfig.lose + ' Puntos (' + lives + ' vidas)';
                 feedback.className = 'feedback wrong';
                 input.value = '';
-
+                
+                submitBtn.innerText = 'Próximo Patrón (Fallaste) ➜';
+                submitBtn.className = 'btn-danger';
+                submitBtn.onclick = function() {
+                    loadSequence();
+                };
+                submitBtn.disabled = false;
+                input.disabled = false;
+                
                 if(lives <= 0) {
                     document.getElementById('game-over').classList.remove('hidden');
                     input.disabled = true;
-                    submitBtn.classList.add('hidden');
-                } else {
-                    setTimeout(() => {
-                        loadSequence();
-                    }, 2500);
+                    submitBtn.disabled = true;
                 }
-
+                
                 if(!isGuest && currentUser) {
                     const newScore = Math.max(0, (currentUser['score_' + currentDifficulty] || 0) - diffConfig.lose);
                     currentUser['score_' + currentDifficulty] = newScore;
