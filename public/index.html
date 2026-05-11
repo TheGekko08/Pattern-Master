@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pattern Master</title>
+    <title>Pattern Master | Ultimate</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -134,6 +134,17 @@
             margin: 20px 0;
         }
         .game-over h3 { color: var(--danger); margin-bottom: 10px; }
+
+        .correct-answer {
+            background: rgba(0, 230, 118, 0.2);
+            border: 2px solid var(--success);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            margin: 15px 0;
+            font-size: 1.3rem;
+            color: var(--success);
+        }
     </style>
 </head>
 <body>
@@ -190,6 +201,8 @@
                     <button class="btn-success" onclick="resetLives()">🔄 Reiniciar Vidas</button>
                 </div>
 
+                <div id="correct-answer-display" class="correct-answer hidden"></div>
+
                 <div class="sequence-box" id="sequence-text">Cargando...</div>
                 
                 <input type="number" id="game-input" placeholder="¿Cuál es el siguiente número?" onkeypress="handleEnter(event)">
@@ -225,6 +238,7 @@
         let currentSequenceId = null;
         let currentDifficulty = 'fácil';
         let lives = 3;
+        let answerSubmitted = false; // ✅ NUEVO: Controla si ya se envió la respuesta
 
         const POINTS_CONFIG = {
             'fácil': { win: 10, lose: 5 },
@@ -275,16 +289,20 @@
         function changeDifficulty() {
             currentDifficulty = document.getElementById('diff-select').value;
             lives = 3;
+            answerSubmitted = false;
             updateLivesDisplay();
             document.getElementById('game-over').classList.add('hidden');
+            document.getElementById('correct-answer-display').classList.add('hidden');
             document.getElementById('game-input').disabled = false;
             loadSequence();
         }
 
         function resetLives() {
             lives = 3;
+            answerSubmitted = false;
             updateLivesDisplay();
             document.getElementById('game-over').classList.add('hidden');
+            document.getElementById('correct-answer-display').classList.add('hidden');
             document.getElementById('game-input').disabled = false;
             loadSequence();
         }
@@ -320,6 +338,7 @@
                 document.getElementById('user-display').innerText = data.username;
                 updateScoreDisplay(data.score_facil);
                 lives = 3;
+                answerSubmitted = false;
                 updateLivesDisplay();
                 showView('view-main');
                 loadSequence();
@@ -331,6 +350,7 @@
         function logout() {
             currentUser = null;
             lives = 3;
+            answerSubmitted = false;
             document.getElementById('login-user').value = '';
             document.getElementById('login-pass').value = '';
             showView('view-auth');
@@ -348,10 +368,13 @@
             document.getElementById('lose-points').innerText = `-${config.lose}`;
 
             document.getElementById('game-input').value = '';
+            document.getElementById('game-input').disabled = false;
             document.getElementById('btn-submit').classList.remove('hidden');
             document.getElementById('btn-next').classList.add('hidden');
             document.getElementById('game-feedback').innerText = '';
+            document.getElementById('correct-answer-display').classList.add('hidden');
             document.getElementById('sequence-text').innerText = "Cargando...";
+            answerSubmitted = false; // ✅ Resetear estado al cargar nuevo patrón
 
             const res = await fetch(`/api/nueva-secuencia?dificultad=${currentDifficulty}`);
             if(!res.ok) {
@@ -364,10 +387,20 @@
             document.getElementById('game-input').focus();
         }
 
+        // ✅ FUNCIÓN CORREGIDA PARA MANEJAR ENTER
         function handleEnter(e) { 
-            if(e.key === 'Enter') checkAnswer(); 
+            if(e.key === 'Enter') {
+                if (answerSubmitted) {
+                    // ✅ Si ya respondió correctamente, Enter carga el siguiente patrón
+                    loadSequence();
+                } else {
+                    // ✅ Si no ha respondido, Enter verifica la respuesta
+                    checkAnswer();
+                }
+            }
         }
 
+        // ✅ FUNCIÓN CORREGIDA PARA VERIFICAR RESPUESTA
         async function checkAnswer() {
             const val = document.getElementById('game-input').value;
             const feedback = document.getElementById('game-feedback');
@@ -383,18 +416,27 @@
             const data = await res.json();
 
             if(data.correcto) {
+                // ✅ RESPUESTA CORRECTA
                 feedback.innerText = `¡CORRECTO! +${config.win} Puntos`;
                 feedback.className = "feedback correct";
                 document.getElementById('btn-submit').classList.add('hidden');
                 document.getElementById('btn-next').classList.remove('hidden');
+                answerSubmitted = true; // ✅ Marcar que ya respondió
                 
                 const newScore = (currentUser[`score_${currentDifficulty}`] || 0) + config.win;
                 currentUser[`score_${currentDifficulty}`] = newScore;
                 updateScoreDisplay(newScore);
                 await saveScore(config.win);
             } else {
+                // ✅ RESPUESTA INCORRECTA
                 lives--;
                 updateLivesDisplay();
+                answerSubmitted = true; // ✅ Marcar que ya respondió
+                
+                // Mostrar la respuesta correcta
+                const correctAnswerDisplay = document.getElementById('correct-answer-display');
+                correctAnswerDisplay.innerText = `❌ La respuesta era: ${data.respuestaCorrecta}`;
+                correctAnswerDisplay.classList.remove('hidden');
                 
                 if(lives <= 0) {
                     feedback.innerText = `💀 ¡SIN VIDAS! -${config.lose} Puntos`;
@@ -405,7 +447,11 @@
                 } else {
                     feedback.innerText = `INCORRECTO! -${config.lose} Puntos (${lives} vidas)`;
                     feedback.className = "feedback wrong";
-                    document.getElementById('game-input').value = '';
+                    
+                    // ✅ Cambiar automáticamente al siguiente patrón después de 2 segundos
+                    setTimeout(() => {
+                        loadSequence();
+                    }, 2000);
                 }
                 
                 const newScore = Math.max(0, (currentUser[`score_${currentDifficulty}`] || 0) - config.lose);
