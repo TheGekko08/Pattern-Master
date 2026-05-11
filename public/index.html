@@ -12,7 +12,6 @@
             --success: #00E676;
             --danger: #FF5252;
             --warning: #FFD740;
-            --shield: #00BFFF;
             --dark: #1A1A2E;
             --glass: rgba(255, 255, 255, 0.1);
             --glass-border: rgba(255, 255, 255, 0.2);
@@ -93,49 +92,14 @@
         .btn-outline { background: transparent; border: 2px solid var(--glass-border); color: rgba(255,255,255,0.7); }
         .btn-outline:hover, .btn-outline.active { background: var(--glass); color: white; border-color: white; }
         .btn-danger { background: linear-gradient(45deg, #cb2d3e, #ef473a); color: white; }
-        .btn-shield { background: linear-gradient(45deg, #00BFFF, #0080FF); color: white; }
 
         .hidden { display: none; }
         .error-msg { color: var(--danger); text-align: center; font-size: 0.9rem; min-height: 20px; margin-bottom: 10px; }
         .link { color: var(--secondary); cursor: pointer; text-decoration: underline; font-size: 0.9rem; text-align: center; display: block; margin-top: 15px; }
 
-        .instructions { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 15px; margin: 20px 0; }
-        .instructions li { margin: 10px 0; list-style: none; }
-        .instructions li::before { content: '✓ '; color: var(--success); }
-
-        .game-header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            background: rgba(0,0,0,0.2); 
-            padding: 15px; 
-            border-radius: 15px; 
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
+        .game-header { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 15px; margin-bottom: 20px; }
         .score-badge { background: linear-gradient(45deg, #FFD700, #FFA500); color: #000; padding: 8px 15px; border-radius: 20px; font-weight: bold; }
         .lives-display { color: var(--danger); font-size: 1.5rem; letter-spacing: 5px; }
-        .shield-display { 
-            color: var(--shield); 
-            font-size: 1.5rem; 
-            letter-spacing: 5px;
-            animation: shieldPulse 2s infinite;
-        }
-
-        @keyframes shieldPulse {
-            0%, 100% { opacity: 1; text-shadow: 0 0 10px var(--shield); }
-            50% { opacity: 0.7; text-shadow: 0 0 20px var(--shield); }
-        }
-
-        .streak-display {
-            background: linear-gradient(45deg, #FF6B6B, #FF8E8E);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
 
         .difficulty-info { text-align: center; margin-bottom: 15px; font-size: 0.9rem; color: rgba(255,255,255,0.6); }
         .sequence-box {
@@ -154,7 +118,17 @@
         .feedback { text-align: center; font-weight: bold; font-size: 1.2rem; min-height: 30px; margin: 10px 0; }
         .feedback.correct { color: var(--success); }
         .feedback.wrong { color: var(--danger); }
-        .feedback.shield { color: var(--shield); }
+
+        .correct-answer {
+            background: rgba(0, 230, 118, 0.2);
+            border: 2px solid var(--success);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            margin: 15px 0;
+            font-size: 1.3rem;
+            color: var(--success);
+        }
 
         .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 10px; background: rgba(0,0,0,0.2); border-radius: 15px; overflow: hidden; }
         .leaderboard-table th { background: rgba(255,255,255,0.1); padding: 12px; text-align: left; font-size: 0.85rem; }
@@ -172,44 +146,6 @@
             margin: 20px 0;
         }
         .game-over h3 { color: var(--danger); margin-bottom: 10px; }
-
-        .reward-notification {
-            background: linear-gradient(45deg, #00E676, #00BFA5);
-            border: 2px solid var(--success);
-            border-radius: 15px;
-            padding: 15px;
-            text-align: center;
-            margin: 15px 0;
-            font-weight: bold;
-            animation: rewardPop 0.5s ease;
-        }
-
-        @keyframes rewardPop {
-            0% { transform: scale(0); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        .modal {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal.active { display: flex; }
-        .modal-content {
-            background: var(--dark);
-            padding: 30px;
-            border-radius: 20px;
-            text-align: center;
-            max-width: 400px;
-            border: 2px solid var(--warning);
-        }
-        .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
-        .modal-buttons button { flex: 1; }
     </style>
 </head>
 <body>
@@ -241,8 +177,6 @@
                 <li>Descubre la regla y adivina el siguiente número</li>
                 <li>Ejemplo: 2, 4, 6, 8, ? → Respuesta: 10 (suma 2)</li>
                 <li>Tienes 3 vidas por partida</li>
-                <li>Cada 10 aciertos recuperas 1 vida o ganas un escudo</li>
-                <li>El escudo te protege de perder una vida (máximo 1)</li>
                 <li>Cada dificultad tiene su propio ranking</li>
             </div>
             <button class="btn-primary" onclick="showDifficultySelect()">¡Entendido, a Jugar! 🎮</button>
@@ -270,19 +204,14 @@
                         <span id="user-display">Jugador</span>
                         <span id="guest-badge" class="btn-success" style="padding: 3px 8px; border-radius: 10px; font-size: 0.7rem; margin-left: 5px; display: none;">Invitado</span>
                     </div>
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <div>
                         <span class="lives-display" id="lives-display">❤️❤️❤️</span>
-                        <span class="shield-display hidden" id="shield-display">🛡️</span>
-                        <span class="streak-display" id="streak-display">🔥 0/10</span>
                         <span class="score-badge" style="margin-left: 10px;">⭐ <span id="score-display">0</span></span>
                     </div>
                 </div>
 
-                <div id="reward-notification" class="reward-notification hidden"></div>
-
                 <div class="difficulty-info">
                     <span id="current-difficulty">Fácil</span>
-                    <button class="btn-outline" onclick="showChangeDiffModal()" style="width: auto; padding: 5px 15px; margin-left: 10px; font-size: 0.8rem;">🔄 Cambiar</button>
                     <br>
                     <small>Gana <span id="win-points">10</span> | Pierde <span id="lose-points">5</span></small>
                 </div>
@@ -293,13 +222,14 @@
                     <button class="btn-success" onclick="resetLives()">🔄 Reiniciar Vidas</button>
                 </div>
 
+                <div id="correct-answer-display" class="correct-answer hidden"></div>
+
                 <div class="sequence-box" id="sequence-text">Cargando...</div>
 
                 <input type="number" id="game-input" placeholder="¿Cuál es el siguiente número?" onkeypress="handleEnter(event)">
                 <div id="game-feedback" class="feedback"></div>
 
                 <button id="btn-submit" class="btn-primary" onclick="checkAnswer()">Verificar Respuesta</button>
-                <button id="btn-next" class="btn-success hidden" onclick="loadSequence()">Siguiente Patrón ➜</button>
 
                 <button class="btn-danger" style="margin-top: 30px;" onclick="logout()">Cerrar Sesión</button>
             </div>
@@ -331,26 +261,12 @@
         </div>
     </div>
 
-    <div id="change-diff-modal" class="modal">
-        <div class="modal-content">
-            <h3 style="color: var(--warning);">⚠️ Advertencia</h3>
-            <p style="margin: 15px 0;">Al cambiar de dificultad <strong>perderás tu puntuación actual</strong> en esta dificultad.</p>
-            <p style="color: var(--danger); font-size: 0.9rem;">¿Estás seguro?</p>
-            <div class="modal-buttons">
-                <button class="btn-outline" onclick="closeChangeDiffModal()">Cancelar</button>
-                <button class="btn-danger" onclick="confirmChangeDiff()">Cambiar</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         let currentUser = null;
         let isGuest = false;
         let currentDifficulty = 'fácil';
         let currentSequenceId = null;
         let lives = 3;
-        let shield = false;
-        let correctStreak = 0;
         let answerSubmitted = false;
 
         const POINTS_CONFIG = {
@@ -385,12 +301,7 @@
         function selectDifficulty(diff) {
             currentDifficulty = diff;
             lives = 3;
-            shield = false;
-            correctStreak = 0;
             answerSubmitted = false;
-            updateLivesDisplay();
-            updateShieldDisplay();
-            updateStreakDisplay();
             showView('view-game');
             loadSequence();
         }
@@ -401,11 +312,7 @@
             document.getElementById('user-display').innerText = 'Invitado';
             document.getElementById('guest-badge').style.display = 'inline-block';
             lives = 3;
-            shield = false;
-            correctStreak = 0;
             updateLivesDisplay();
-            updateShieldDisplay();
-            updateStreakDisplay();
             showView('view-game');
             loadSequence();
         }
@@ -458,11 +365,7 @@
                 document.getElementById('user-display').innerText = data.username;
                 document.getElementById('guest-badge').style.display = 'none';
                 lives = 3;
-                shield = false;
-                correctStreak = 0;
                 updateLivesDisplay();
-                updateShieldDisplay();
-                updateStreakDisplay();
                 showView('view-game');
                 loadSequence();
             } else {
@@ -474,8 +377,6 @@
             currentUser = null;
             isGuest = false;
             lives = 3;
-            shield = false;
-            correctStreak = 0;
             document.getElementById('login-user').value = '';
             document.getElementById('login-pass').value = '';
             document.getElementById('user-display').innerText = 'Jugador';
@@ -494,7 +395,7 @@
             } else {
                 document.getElementById('content-rank').classList.remove('hidden');
                 document.getElementById('tab-rank').classList.add('active');
-                loadLeaderboard('fácil');
+                loadLeaderboard(currentDifficulty);
             }
         }
 
@@ -504,51 +405,13 @@
             document.getElementById('lives-display').innerText = hearts;
         }
 
-        function updateShieldDisplay() {
-            const shieldDisplay = document.getElementById('shield-display');
-            if(shield) {
-                shieldDisplay.classList.remove('hidden');
-            } else {
-                shieldDisplay.classList.add('hidden');
-            }
-        }
-
-        function updateStreakDisplay() {
-            document.getElementById('streak-display').innerText = '🔥 ' + correctStreak + '/10';
-        }
-
-        function showReward(message) {
-            const notification = document.getElementById('reward-notification');
-            notification.innerText = message;
-            notification.classList.remove('hidden');
-            setTimeout(() => {
-                notification.classList.add('hidden');
-            }, 3000);
-        }
-
-        function showChangeDiffModal() {
-            document.getElementById('change-diff-modal').classList.add('active');
-        }
-
-        function closeChangeDiffModal() {
-            document.getElementById('change-diff-modal').classList.remove('active');
-        }
-
-        function confirmChangeDiff() {
-            closeChangeDiffModal();
-            showView('view-difficulty');
-        }
-
         function resetLives() {
             lives = 3;
-            shield = false;
-            correctStreak = 0;
             answerSubmitted = false;
             updateLivesDisplay();
-            updateShieldDisplay();
-            updateStreakDisplay();
             document.getElementById('game-over').classList.add('hidden');
             document.getElementById('game-input').disabled = false;
+            document.getElementById('correct-answer-display').classList.add('hidden');
             loadSequence();
         }
 
@@ -570,10 +433,10 @@
             submitBtn.innerText = 'Verificar Respuesta';
             submitBtn.className = 'btn-primary';
             submitBtn.onclick = checkAnswer;
-            submitBtn.classList.remove('hidden');
+            submitBtn.disabled = false;
             
-            document.getElementById('btn-next').classList.add('hidden');
             document.getElementById('game-feedback').innerText = '';
+            document.getElementById('correct-answer-display').classList.add('hidden');
             document.getElementById('sequence-text').innerText = 'Cargando...';
             answerSubmitted = false;
 
@@ -618,27 +481,6 @@
             const data = await res.json();
 
             if(data.correcto) {
-                // ✅ RESPUESTA CORRECTA
-                correctStreak++;
-                
-                // Verificar recompensa cada 10 aciertos
-                if(correctStreak % 10 === 0) {
-                    if(lives < 3) {
-                        lives++;
-                        updateLivesDisplay();
-                        showReward('🎉 ¡10 aciertos! Recuperaste 1 vida ❤️');
-                    } else if(!shield) {
-                        shield = true;
-                        updateShieldDisplay();
-                        showReward('🛡️ ¡10 aciertos! Ganaste un escudo protector!');
-                    } else {
-                        showReward('🔥 ¡10 aciertos! Ya tienes el escudo máximo');
-                    }
-                } else {
-                    feedback.innerText = '¡CORRECTO! +' + diffConfig.win + ' Puntos';
-                }
-                
-                updateStreakDisplay();
                 feedback.innerText = '¡CORRECTO! +' + diffConfig.win + ' Puntos';
                 feedback.className = 'feedback correct';
                 
@@ -657,28 +499,16 @@
                     await saveScore(diffConfig.win);
                 }
             } else {
-                // ❌ RESPUESTA INCORRECTA
-                let lifeLost = true;
+                lives--;
+                updateLivesDisplay();
+                answerSubmitted = true;
                 
-                // Verificar si tiene escudo
-                if(shield) {
-                    shield = false;
-                    updateShieldDisplay();
-                    feedback.innerText = '🛡️ ¡Escudo activado! No perdiste vida';
-                    feedback.className = 'feedback shield';
-                    lifeLost = false;
-                    showReward('🛡️ Tu escudo te protegió de perder una vida');
-                } else {
-                    lives--;
-                    updateLivesDisplay();
-                    feedback.innerText = 'INCORRECTO! -' + diffConfig.lose + ' Puntos (' + lives + ' vidas)';
-                    feedback.className = 'feedback wrong';
-                }
+                const correctAnswerDisplay = document.getElementById('correct-answer-display');
+                correctAnswerDisplay.innerText = '❌ La respuesta era: ' + data.respuestaCorrecta;
+                correctAnswerDisplay.classList.remove('hidden');
                 
-                // Resetear racha al fallar
-                correctStreak = 0;
-                updateStreakDisplay();
-                
+                feedback.innerText = 'INCORRECTO! -' + diffConfig.lose + ' Puntos (' + lives + ' vidas)';
+                feedback.className = 'feedback wrong';
                 input.value = '';
                 
                 submitBtn.innerText = 'Próximo Patrón (Fallaste) ➜';
@@ -695,7 +525,7 @@
                     submitBtn.disabled = true;
                 }
                 
-                if(!isGuest && currentUser && lifeLost) {
+                if(!isGuest && currentUser) {
                     const newScore = Math.max(0, (currentUser['score_' + currentDifficulty] || 0) - diffConfig.lose);
                     currentUser['score_' + currentDifficulty] = newScore;
                     updateScoreDisplay(newScore);

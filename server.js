@@ -95,7 +95,7 @@ app.get('/api/leaderboard', (req, res) => {
     const col = DIFF_COL[dificultad];
     if (!col) return res.status(400).json({ error: 'Dificultad inválida' });
 
-    db.all(`SELECT username, ${col} as score FROM users WHERE ${col} > 0 ORDER BY ${col} DESC LIMIT 10`, [], (err, rows) => {
+    db.all(`SELECT username, ${col} as score FROM users WHERE ${col} >= 0 ORDER BY ${col} DESC LIMIT 10`, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
