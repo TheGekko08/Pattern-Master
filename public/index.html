@@ -52,10 +52,7 @@
         h1, h2, h3 { text-align: center; margin-bottom: 1.5rem; text-transform: uppercase; letter-spacing: 2px; }
         h1 { background: linear-gradient(to right, var(--secondary), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
-        .input-group {
-            position: relative;
-            margin: 10px 0;
-        }
+        .input-group { position: relative; margin: 10px 0; }
 
         input, select {
             width: 100%;
@@ -92,10 +89,7 @@
             z-index: 10;
         }
 
-        .toggle-password:hover {
-            color: white;
-            background: rgba(255, 255, 255, 0.1);
-        }
+        .toggle-password:hover { color: white; background: rgba(255, 255, 255, 0.1); }
 
         button {
             width: 100%;
@@ -120,24 +114,9 @@
         .error-msg { color: var(--danger); text-align: center; font-size: 0.9rem; min-height: 20px; margin-bottom: 10px; }
         .link { color: var(--secondary); cursor: pointer; text-decoration: underline; font-size: 0.9rem; text-align: center; display: block; margin-top: 15px; }
 
-        .timer-display {
-            text-align: center;
-            font-size: 2rem;
-            font-weight: bold;
-            color: var(--warning);
-            margin: 15px 0;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        .timer-warning { color: var(--danger); animation: pulse 0.5s infinite; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
         .game-header { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 15px; margin-bottom: 20px; }
         .score-badge { background: linear-gradient(45deg, #FFD700, #FFA500); color: #000; padding: 8px 15px; border-radius: 20px; font-weight: bold; }
+        .lives-display { color: var(--danger); font-size: 1.5rem; letter-spacing: 5px; }
         
         .difficulty-info { text-align: center; margin-bottom: 15px; font-size: 0.9rem; color: rgba(255,255,255,0.6); }
         .sequence-box {
@@ -164,7 +143,10 @@
         .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 15px; }
         .nav-tabs button { margin: 0; border-radius: 10px; font-size: 0.9rem; padding: 10px; }
 
-        .blocked-message {
+        .difficulty-tabs { display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap; }
+        .difficulty-tabs button { flex: 1; min-width: 80px; padding: 8px; font-size: 0.8rem; }
+
+        .game-over {
             background: rgba(255, 82, 82, 0.2);
             border: 2px solid var(--danger);
             border-radius: 15px;
@@ -172,9 +154,7 @@
             text-align: center;
             margin: 20px 0;
         }
-
-        .blocked-message h3 { color: var(--danger); margin-bottom: 10px; }
-        .countdown { font-size: 2rem; font-weight: bold; color: var(--danger); font-family: 'JetBrains Mono', monospace; }
+        .game-over h3 { color: var(--danger); margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -182,12 +162,6 @@
         <div id="view-auth">
             <h1>Pattern Master</h1>
             <div id="auth-error" class="error-msg"></div>
-            
-            <div id="blocked-message" class="blocked-message hidden">
-                <h3>🔒 Cuenta Bloqueada</h3>
-                <p>Demasiados intentos fallidos. Intenta de nuevo en:</p>
-                <div class="countdown" id="block-countdown">15:00</div>
-            </div>
             
             <div id="form-login">
                 <div class="input-group">
@@ -223,12 +197,15 @@
             <div id="content-game">
                 <div class="game-header">
                     <span id="user-display" style="font-weight:bold;">Jugador</span>
-                    <div class="score-badge">⭐ <span id="score-display">0</span></div>
+                    <div>
+                        <span class="lives-display" id="lives-display">❤️❤️❤️</span>
+                        <span class="score-badge" style="margin-left: 10px;">⭐ <span id="score-display">0</span></span>
+                    </div>
                 </div>
 
                 <div class="difficulty-info">
                     Nivel: 
-                    <select id="diff-select" onchange="loadSequence()">
+                    <select id="diff-select" onchange="changeDifficulty()">
                         <option value="fácil">Fácil</option>
                         <option value="medio">Medio</option>
                         <option value="difícil">Difícil</option>
@@ -238,7 +215,12 @@
                     <small>Gana <span id="win-points">10</span> | Pierde <span id="lose-points">5</span></small>
                 </div>
 
-                <div class="timer-display" id="timer-display">⏱️ 20s</div>
+                <div id="game-over" class="game-over hidden">
+                    <h3>💀 ¡Sin vidas!</h3>
+                    <p>Has perdido todas tus vidas en esta dificultad.</p>
+                    <button class="btn-success" onclick="resetLives()">🔄 Reiniciar Vidas</button>
+                </div>
+
                 <div class="sequence-box" id="sequence-text">Cargando...</div>
                 
                 <input type="number" id="game-input" placeholder="¿Cuál es el siguiente número?" onkeypress="handleEnter(event)">
@@ -251,7 +233,13 @@
             </div>
 
             <div id="content-rank" class="hidden">
-                <h2>Top 10 Maestros</h2>
+                <h2>🏆 Ranking por Dificultad</h2>
+                <div class="difficulty-tabs">
+                    <button class="btn-outline active" onclick="loadLeaderboard('fácil', this)">Fácil</button>
+                    <button class="btn-outline" onclick="loadLeaderboard('medio', this)">Medio</button>
+                    <button class="btn-outline" onclick="loadLeaderboard('difícil', this)">Difícil</button>
+                    <button class="btn-outline" onclick="loadLeaderboard('experto', this)">Experto</button>
+                </div>
                 <table class="leaderboard-table">
                     <thead>
                         <tr><th>#</th><th>Jugador</th><th>Puntos</th></tr>
@@ -267,9 +255,7 @@
         let currentUser = null;
         let currentSequenceId = null;
         let currentDifficulty = 'fácil';
-        let timerInterval = null;
-        let timeLeft = 20;
-        let blockInterval = null;
+        let lives = 3;
 
         const POINTS_CONFIG = {
             'fácil': { win: 10, lose: 5 },
@@ -278,16 +264,8 @@
             'experto': { win: 80, lose: 40 }
         };
 
-        const TIMER_CONFIG = {
-            'fácil': 20,
-            'medio': 35,
-            'difícil': 60,
-            'experto': 90
-        };
-
         function toggleAuth(mode) {
             document.getElementById('auth-error').innerText = '';
-            document.getElementById('blocked-message').classList.add('hidden');
             if(mode === 'register') {
                 document.getElementById('form-login').classList.add('hidden');
                 document.getElementById('form-register').classList.remove('hidden');
@@ -320,8 +298,31 @@
             } else {
                 document.getElementById('content-rank').classList.remove('hidden');
                 document.getElementById('tab-rank').classList.add('active');
-                loadLeaderboard();
+                loadLeaderboard(currentDifficulty);
             }
+        }
+
+        function updateLivesDisplay() {
+            let hearts = '';
+            for(let i = 0; i < lives; i++) hearts += '❤️';
+            document.getElementById('lives-display').innerText = hearts;
+        }
+
+        function changeDifficulty() {
+            currentDifficulty = document.getElementById('diff-select').value;
+            lives = 3;
+            updateLivesDisplay();
+            document.getElementById('game-over').classList.add('hidden');
+            document.getElementById('game-input').disabled = false;
+            loadSequence();
+        }
+
+        function resetLives() {
+            lives = 3;
+            updateLivesDisplay();
+            document.getElementById('game-over').classList.add('hidden');
+            document.getElementById('game-input').disabled = false;
+            loadSequence();
         }
 
         async function register() {
@@ -354,39 +355,18 @@
                 currentUser = data;
                 document.getElementById('user-display').innerText = data.username;
                 updateScoreDisplay(data.score_facil);
+                lives = 3;
+                updateLivesDisplay();
                 showView('view-main');
                 loadSequence();
             } else {
                 document.getElementById('auth-error').innerText = data.error;
-                if(data.blocked) {
-                    document.getElementById('form-login').classList.add('hidden');
-                    document.getElementById('blocked-message').classList.remove('hidden');
-                    startBlockCountdown(data.remainingSeconds);
-                }
             }
-        }
-
-        function startBlockCountdown(seconds) {
-            let remaining = seconds;
-            blockInterval = setInterval(() => {
-                remaining--;
-                const mins = Math.floor(remaining / 60);
-                const secs = remaining % 60;
-                document.getElementById('block-countdown').innerText = 
-                    `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-                if(remaining <= 0) {
-                    clearInterval(blockInterval);
-                    document.getElementById('blocked-message').classList.add('hidden');
-                    document.getElementById('form-login').classList.remove('hidden');
-                    document.getElementById('auth-error').innerText = '';
-                }
-            }, 1000);
         }
 
         function logout() {
             currentUser = null;
-            if(timerInterval) clearInterval(timerInterval);
-            if(blockInterval) clearInterval(blockInterval);
+            lives = 3;
             document.getElementById('login-user').value = '';
             document.getElementById('login-pass').value = '';
             showView('view-auth');
@@ -395,47 +375,15 @@
         function updateScoreDisplay(newScore) {
             const el = document.getElementById('score-display');
             el.innerText = Math.round(newScore);
-            if(currentUser) currentUser.score_facil = newScore;
-        }
-
-        function startTimer(seconds) {
-            if(timerInterval) clearInterval(timerInterval);
-            timeLeft = seconds;
-            const timerDisplay = document.getElementById('timer-display');
-            timerDisplay.classList.remove('timer-warning');
-            updateTimerDisplay();
-            
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                updateTimerDisplay();
-                if(timeLeft <= 10) {
-                    timerDisplay.classList.add('timer-warning');
-                }
-                if(timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    document.getElementById('game-feedback').innerText = '⏰ ¡Tiempo agotado!';
-                    document.getElementById('game-feedback').className = 'feedback wrong';
-                    document.getElementById('game-input').disabled = true;
-                    document.getElementById('btn-submit').classList.add('hidden');
-                    document.getElementById('btn-next').classList.remove('hidden');
-                }
-            }, 1000);
-        }
-
-        function updateTimerDisplay() {
-            document.getElementById('timer-display').innerText = `⏱️ ${timeLeft}s`;
         }
 
         async function loadSequence() {
-            currentDifficulty = document.getElementById('diff-select').value;
             const config = POINTS_CONFIG[currentDifficulty];
-            const timeLimit = TIMER_CONFIG[currentDifficulty];
             
             document.getElementById('win-points').innerText = `+${config.win}`;
             document.getElementById('lose-points').innerText = `-${config.lose}`;
 
             document.getElementById('game-input').value = '';
-            document.getElementById('game-input').disabled = false;
             document.getElementById('btn-submit').classList.remove('hidden');
             document.getElementById('btn-next').classList.add('hidden');
             document.getElementById('game-feedback').innerText = '';
@@ -450,7 +398,6 @@
             currentSequenceId = data.id;
             document.getElementById('sequence-text').innerText = data.numeros;
             document.getElementById('game-input').focus();
-            startTimer(data.timeLimit || timeLimit);
         }
 
         function handleEnter(e) { 
@@ -474,20 +421,28 @@
             if(data.correcto) {
                 feedback.innerText = `¡CORRECTO! +${config.win} Puntos`;
                 feedback.className = "feedback correct";
-                document.getElementById('game-input').disabled = true;
                 document.getElementById('btn-submit').classList.add('hidden');
                 document.getElementById('btn-next').classList.remove('hidden');
-                if(timerInterval) clearInterval(timerInterval);
                 
                 const newScore = (currentUser[`score_${currentDifficulty}`] || 0) + config.win;
                 currentUser[`score_${currentDifficulty}`] = newScore;
                 updateScoreDisplay(newScore);
                 await saveScore(config.win);
             } else {
-                feedback.innerText = `INCORRECTO! -${config.lose} Puntos`;
-                feedback.className = "feedback wrong";
-                document.getElementById('game-input').value = '';
-                if(timerInterval) clearInterval(timerInterval);
+                lives--;
+                updateLivesDisplay();
+                
+                if(lives <= 0) {
+                    feedback.innerText = `💀 ¡SIN VIDAS! -${config.lose} Puntos`;
+                    feedback.className = "feedback wrong";
+                    document.getElementById('game-over').classList.remove('hidden');
+                    document.getElementById('game-input').disabled = true;
+                    document.getElementById('btn-submit').classList.add('hidden');
+                } else {
+                    feedback.innerText = `INCORRECTO! -${config.lose} Puntos (${lives} vidas)`;
+                    feedback.className = "feedback wrong";
+                    document.getElementById('game-input').value = '';
+                }
                 
                 const newScore = Math.max(0, (currentUser[`score_${currentDifficulty}`] || 0) - config.lose);
                 currentUser[`score_${currentDifficulty}`] = newScore;
@@ -512,14 +467,27 @@
             }
         }
 
-        async function loadLeaderboard() {
-            const res = await fetch(`/api/leaderboard?dificultad=${currentDifficulty}`);
+        async function loadLeaderboard(dificultad, btn) {
+            if(btn) {
+                document.querySelectorAll('.difficulty-tabs button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+            
+            const res = await fetch(`/api/leaderboard?dificultad=${dificultad}`);
             const data = await res.json();
             const tbody = document.getElementById('leaderboard-body');
             tbody.innerHTML = '';
 
+            if(data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Sin jugadores aún</td></tr>';
+                return;
+            }
+
             data.forEach((player, index) => {
                 const tr = document.createElement('tr');
+                if(currentUser && player.username === currentUser.username) {
+                    tr.style.background = 'rgba(108, 99, 255, 0.2)';
+                }
                 tr.innerHTML = `
                     <td>#${index + 1}</td>
                     <td>${player.username} ${player.username === currentUser?.username ? '(Tú)' : ''}</td>
