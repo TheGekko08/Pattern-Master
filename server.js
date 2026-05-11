@@ -103,24 +103,12 @@ app.get('/api/leaderboard', (req, res) => {
 
 app.get('/api/nueva-secuencia', (req, res) => {
     const dificultad = req.query.dificultad || 'fácil';
-    console.log(`🎲 Pidiendo patrón: ${dificultad}`);
-
-    if (!db) {
-        console.error("❌ DB es nula");
-        return res.status(500).json({ error: "DB no iniciada" });
-    }
+    if (!DIFF_COL[dificultad]) return res.status(400).json({ error: "Dificultad inválida" });
 
     db.get("SELECT * FROM secuencias WHERE dificultad = ? ORDER BY RANDOM() LIMIT 1", [dificultad], (err, row) => {
-        if (err) {
-            console.error("❌ Error SQL:", err.message);
-            return res.status(500).json({ error: "Error SQL: " + err.message });
-        }
-        if (!row) {
-            console.warn("⚠️ Sin patrones para:", dificultad);
-            return res.status(404).json({ error: "Sin patrones" });
-        }
-
-        console.log(`✅ Patrón encontrado: ${row.numeros}`);
+        if (err) return res.status(500).json({ error: "Error SQL: " + err.message });
+        if (!row) return res.status(404).json({ error: "Sin patrones" });
+        
         res.json({ id: row.id, numeros: row.numeros, dificultad: row.dificultad });
     });
 });
