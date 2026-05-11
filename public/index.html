@@ -88,15 +88,14 @@
         .btn-outline { background: transparent; border: 2px solid var(--glass-border); color: rgba(255,255,255,0.7); }
         .btn-outline:hover, .btn-outline.active { background: var(--glass); color: white; border-color: white; }
         .btn-danger { background: linear-gradient(45deg, #cb2d3e, #ef473a); color: white; }
-        .btn-guest { background: linear-gradient(45deg, #667eea, #764ba2); color: white; }
 
-        .hidden { display: none !important; }
+        .hidden { display: none; }
         .error-msg { color: var(--danger); text-align: center; font-size: 0.9rem; min-height: 20px; margin-bottom: 10px; }
         .link { color: var(--secondary); cursor: pointer; text-decoration: underline; font-size: 0.9rem; text-align: center; display: block; margin-top: 15px; }
 
         .instructions { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 15px; margin: 20px 0; }
         .instructions li { margin: 10px 0; list-style: none; }
-        .instructions li::before { content: "✓ "; color: var(--success); }
+        .instructions li::before { content: '✓ '; color: var(--success); }
 
         .game-header { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 15px; margin-bottom: 20px; }
         .score-badge { background: linear-gradient(45deg, #FFD700, #FFA500); color: #000; padding: 8px 15px; border-radius: 20px; font-weight: bold; }
@@ -173,7 +172,7 @@
                 <input type="text" id="login-user" placeholder="Nombre de Usuario">
                 <input type="password" id="login-pass" placeholder="Contraseña">
                 <button class="btn-primary" onclick="login()">Iniciar Sesión</button>
-                <button class="btn-guest" onclick="guestMode()">👤 Jugar como Invitado</button>
+                <button class="btn-success" onclick="guestMode()">👤 Jugar como Invitado</button>
                 <span class="link" onclick="toggleAuth('register')">¿Nuevo? Crear cuenta</span>
             </div>
 
@@ -217,7 +216,7 @@
                 <div class="game-header">
                     <div>
                         <span id="user-display" style="font-weight:bold;">Jugador</span>
-                        <span id="guest-badge" class="btn-guest" style="padding: 3px 8px; border-radius: 10px; font-size: 0.7rem; margin-left: 5px;">Invitado</span>
+                        <span id="guest-badge" class="btn-success" style="padding: 3px 8px; border-radius: 10px; font-size: 0.7rem; margin-left: 5px;">Invitado</span>
                     </div>
                     <div>
                         <span class="lives-display" id="lives-display">❤️❤️❤️</span>
@@ -251,10 +250,23 @@
 
             <div id="content-rank" class="hidden">
                 <h2>🏆 Ranking por Dificultad</h2>
+                
+                <div class="difficulty-tabs" style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <button class="btn-outline active" onclick="loadLeaderboard('fácil', this)">🟢 Fácil</button>
+                    <button class="btn-outline" onclick="loadLeaderboard('medio', this)">🔵 Medio</button>
+                    <button class="btn-outline" onclick="loadLeaderboard('difícil', this)">🔴 Difícil</button>
+                    <button class="btn-outline" onclick="loadLeaderboard('experto', this)">🟣 Experto</button>
+                </div>
+
                 <p id="guest-warning" class="hidden" style="text-align: center; color: var(--warning); margin-bottom: 15px;">👤 Como invitado tu puntuación no se guarda</p>
+                
                 <table class="leaderboard-table">
                     <thead>
-                        <tr><th>#</th><th>Jugador</th><th>Puntos</th></tr>
+                        <tr>
+                            <th>#</th>
+                            <th>Jugador</th>
+                            <th>Puntos</th>
+                        </tr>
                     </thead>
                     <tbody id="leaderboard-body"></tbody>
                 </table>
@@ -282,13 +294,28 @@
         let currentSequenceId = null;
         let lives = 3;
         let answerSubmitted = false;
+        let config = {};
+        let symbols = {};
 
-        const POINTS_CONFIG = {
-            'fácil': { win: 10, lose: 5 },
-            'medio': { win: 20, lose: 10 },
-            'difícil': { win: 40, lose: 20 },
-            'experto': { win: 80, lose: 40 }
-        };
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                config = data.difficulties;
+                symbols = data.symbols;
+                lives = data.maxLives || 3;
+                updateLivesDisplay();
+            } catch (e) {
+                console.error('Error cargando config:', e);
+                config = {
+                    'fácil': { pointsWin: 10, pointsLose: 5 },
+                    'medio': { pointsWin: 20, pointsLose: 10 },
+                    'difícil': { pointsWin: 40, pointsLose: 20 },
+                    'experto': { pointsWin: 80, pointsLose: 40 }
+                };
+                symbols = { heart: '❤️', star: '⭐', trophy: '🏆', game: '🎮' };
+            }
+        }
 
         function toggleAuth(mode) {
             document.getElementById('auth-error').innerText = '';
@@ -314,7 +341,7 @@
 
         function selectDifficulty(diff) {
             currentDifficulty = diff;
-            lives = 3;
+            lives = config.maxLives || 3;
             answerSubmitted = false;
             showView('view-game');
             loadSequence();
@@ -336,7 +363,7 @@
             });
             const data = await res.json();
             if(data.success) { 
-                alert("¡Registro exitoso! Ahora inicia sesión."); 
+                alert('¡Registro exitoso! Ahora inicia sesión.'); 
                 toggleAuth('login'); 
             } else {
                 document.getElementById('auth-error').innerText = data.error;
@@ -383,13 +410,13 @@
             } else {
                 document.getElementById('content-rank').classList.remove('hidden');
                 document.getElementById('tab-rank').classList.add('active');
-                loadLeaderboard();
+                loadLeaderboard('fácil');
             }
         }
 
         function updateLivesDisplay() {
             let hearts = '';
-            for(let i = 0; i < lives; i++) hearts += '❤️';
+            for(let i = 0; i < lives; i++) hearts += symbols.heart || '❤️';
             document.getElementById('lives-display').innerText = hearts;
         }
 
@@ -407,7 +434,7 @@
         }
 
         function resetLives() {
-            lives = 3;
+            lives = config.maxLives || 3;
             answerSubmitted = false;
             updateLivesDisplay();
             document.getElementById('game-over').classList.add('hidden');
@@ -420,23 +447,23 @@
         }
 
         async function loadSequence() {
-            const config = POINTS_CONFIG[currentDifficulty];
+            const diffConfig = config[currentDifficulty] || { pointsWin: 10, pointsLose: 5 };
             
             document.getElementById('current-difficulty').innerText = currentDifficulty.charAt(0).toUpperCase() + currentDifficulty.slice(1);
-            document.getElementById('win-points').innerText = `+${config.win}`;
-            document.getElementById('lose-points').innerText = `-${config.lose}`;
+            document.getElementById('win-points').innerText = `+${diffConfig.pointsWin}`;
+            document.getElementById('lose-points').innerText = `-${diffConfig.pointsLose}`;
 
             document.getElementById('game-input').value = '';
             document.getElementById('game-input').disabled = false;
             document.getElementById('btn-submit').classList.remove('hidden');
             document.getElementById('btn-next').classList.add('hidden');
             document.getElementById('game-feedback').innerText = '';
-            document.getElementById('sequence-text').innerText = "Cargando...";
+            document.getElementById('sequence-text').innerText = 'Cargando...';
             answerSubmitted = false;
 
             const res = await fetch(`/api/nueva-secuencia?dificultad=${currentDifficulty}`);
             if(!res.ok) {
-                document.getElementById('sequence-text').innerText = "Error cargando patrón";
+                document.getElementById('sequence-text').innerText = 'Error cargando patrón';
                 return;
             }
             const data = await res.json();
@@ -458,7 +485,7 @@
         async function checkAnswer() {
             const val = document.getElementById('game-input').value;
             const feedback = document.getElementById('game-feedback');
-            const config = POINTS_CONFIG[currentDifficulty];
+            const diffConfig = config[currentDifficulty] || { pointsWin: 10, pointsLose: 5 };
 
             if(val === '') return;
 
@@ -470,25 +497,25 @@
             const data = await res.json();
 
             if(data.correcto) {
-                feedback.innerText = `¡CORRECTO! +${config.win} Puntos`;
-                feedback.className = "feedback correct";
+                feedback.innerText = `¡CORRECTO! +${diffConfig.pointsWin} Puntos`;
+                feedback.className = 'feedback correct';
                 document.getElementById('btn-submit').classList.add('hidden');
                 document.getElementById('btn-next').classList.remove('hidden');
                 answerSubmitted = true;
                 
                 if(!isGuest && currentUser) {
-                    const newScore = (currentUser[`score_${currentDifficulty}`] || 0) + config.win;
+                    const newScore = (currentUser[`score_${currentDifficulty}`] || 0) + diffConfig.pointsWin;
                     currentUser[`score_${currentDifficulty}`] = newScore;
                     updateScoreDisplay(newScore);
-                    await saveScore(config.win);
+                    await saveScore(diffConfig.pointsWin);
                 }
             } else {
                 lives--;
                 updateLivesDisplay();
                 answerSubmitted = true;
                 
-                feedback.innerText = `INCORRECTO! -${config.lose} Puntos (${lives} vidas)`;
-                feedback.className = "feedback wrong";
+                feedback.innerText = `INCORRECTO! -${diffConfig.pointsLose} Puntos (${lives} vidas)`;
+                feedback.className = 'feedback wrong';
                 document.getElementById('game-input').value = '';
                 
                 if(lives <= 0) {
@@ -498,10 +525,10 @@
                 }
                 
                 if(!isGuest && currentUser) {
-                    const newScore = Math.max(0, (currentUser[`score_${currentDifficulty}`] || 0) - config.lose);
+                    const newScore = Math.max(0, (currentUser[`score_${currentDifficulty}`] || 0) - diffConfig.pointsLose);
                     currentUser[`score_${currentDifficulty}`] = newScore;
                     updateScoreDisplay(newScore);
-                    await saveScore(-config.lose);
+                    await saveScore(-diffConfig.pointsLose);
                 }
             }
         }
@@ -519,12 +546,17 @@
                     })
                 });
             } catch (e) {
-                console.error("Error guardando:", e);
+                console.error('Error guardando:', e);
             }
         }
 
-        async function loadLeaderboard() {
-            const res = await fetch(`/api/leaderboard?dificultad=${currentDifficulty}`);
+        async function loadLeaderboard(dificultad, btn) {
+            if(btn) {
+                document.querySelectorAll('.difficulty-tabs button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+
+            const res = await fetch(`/api/leaderboard?dificultad=${dificultad}`);
             const data = await res.json();
             const tbody = document.getElementById('leaderboard-body');
             tbody.innerHTML = '';
@@ -547,6 +579,10 @@
                 tbody.appendChild(tr);
             });
         }
+
+        window.onload = () => {
+            loadConfig();
+        };
     </script>
 </body>
 </html>

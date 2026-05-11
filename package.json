@@ -7,12 +7,17 @@
         "start": "node server.js",
         "dev": "nodemon server.js"
     },
-    "keywords": ["juego", "patrones", "matemáticas"],
+    "keywords": [
+        "juego",
+        "patrones",
+        "matemáticas"
+    ],
     "author": "TheGekko08",
     "license": "ISC",
     "type": "commonjs",
     "dependencies": {
         "bcryptjs": "^3.0.3",
+        "better-sqlite3": "^12.9.0",
         "body-parser": "^2.2.2",
         "cors": "^2.8.6",
         "dotenv": "^17.3.1",
